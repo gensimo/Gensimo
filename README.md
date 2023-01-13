@@ -1,0 +1,2 @@
+# gensimo
+GENSIMO modelling framework
