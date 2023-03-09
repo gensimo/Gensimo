@@ -123,7 +123,7 @@ function state( state=nothing # Or provide a State.
               ; physio_health=nothing # Or provide an integer 0:100.
               , psycho_health=nothing # Or provide an integer 0:100.
               , add_claim=nothing # Or provide Claim object.
-              , add_service=nothing # Or provide claim # and service.
+              , add_service=nothing # Or provide claim number and Service.
               )
 
     if isnothing(state)

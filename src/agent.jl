@@ -3,12 +3,14 @@ module ClientAgent
 using Agents
 using AgentsX
 
+include("states.jl")
 using .States
-
 export Client
 
 include("actions.jl")
 
+# State = States.State
+# state = States.state
 
 """
     Client <:AbstractAgent

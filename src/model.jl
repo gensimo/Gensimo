@@ -6,8 +6,8 @@ using Random
 using InteractiveDynamics
 using CairoMakie
 
+include("agent.jl")
 using .ClientAgent
-
 """
     initialise()
 Initialise function for the ABM.
@@ -19,7 +19,7 @@ function initialise(step_function; numagents = 1000, seed = 250 )
     space = GridSpace
     properties = Dict(:step_function => step_function)
     rng = Random.MersenneTwister(seed)
-    
+
     model = ABM(
         Client, space;
         properties, rng
