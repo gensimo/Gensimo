@@ -1,2 +1,6 @@
 [deps]
+Agents = "46ada45e-f475-11e8-01d0-f70cc89e6671"
 AgentsX = "0e440e3b-bb60-4f88-ac6f-ed216e8051a4"
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
+InteractiveDynamics = "ec714cd0-5f51-11eb-0b6e-452e7367ff84"
+Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"

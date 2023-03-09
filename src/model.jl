@@ -1,10 +1,12 @@
+module InsuranceModel
+
 using Agents
 using AgentsX
 using Random
 using InteractiveDynamics
 using CairoMakie
 
-include("agent.jl")
+using .ClientAgent
 
 """
     initialise()
@@ -25,7 +27,9 @@ function initialise(step_function; numagents = 1000, seed = 250 )
 
     for n in 1:numagents
         agent = Client(
-            #TODO Complete Agent Initialisation
+            n,
+            (0, 0),
+            state()
         )
         add_agent_single!(agent, model)
     end
@@ -37,3 +41,5 @@ end
 #TODO reorder agent actions in expected execution order if required.
 #TODO insert keyword arguments if required
 model = initialise([])
+
+end # module
