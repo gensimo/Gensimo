@@ -15,8 +15,9 @@ State
 module States
 
 
-export State, state, states, claims, claims_adjacency, neighbours, distance
-
+export State, state, states
+export claims, claims_adjacency
+export neighbours, distance
 export s1, s2, s3, c1, c2
 
 using Combinatorics: powerset
@@ -339,6 +340,14 @@ function claims()
                for casemanager ∈ instances(CaseManager)
                for serviceset ∈ servicesets ]
     return claims
+end
+
+function Base.isempty(claim::Claim)
+    if isempty(claim.services)
+        return true
+    else
+        return false
+    end
 end
 
 """Return claims that are unit distance from `claim`."""
