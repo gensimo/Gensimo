@@ -4,7 +4,7 @@ MDP representation of a social insurance scheme.
 module Scheme
 
 using POMDPs, QuickPOMDPs, POMDPModelTools, POMDPSimulators, QMDP
-using POMDPTools: Deterministic, Uniform, SparseCat
+using POMDPTools: Deterministic, Uniform, SparseCat, RandomPolicy
 using Distributions
 
 include("states.jl")
@@ -30,7 +30,7 @@ scheme = QuickMDP( states = claims()
                  , discount = .95
                  , transition = transition
                  , reward = reward
-                 , initialstate=claims()[8]
+                 , initialstate=Deterministic(claims()[8])
                  )
 
 
