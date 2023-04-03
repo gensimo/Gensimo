@@ -10,6 +10,8 @@ using Distributions
 include("states.jl")
 using .States
 
+export scheme
+
 function reward(s, a, sp)
     if sp == s
         return -1.0
@@ -33,6 +35,4 @@ scheme = QuickMDP( states = claims()
                  , initialstate=Deterministic(claims()[8])
                  )
 
-
-# End of module.
-end
+end # Module Scheme.
