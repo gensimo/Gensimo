@@ -4,6 +4,6 @@ include("model.jl")
 include("scheme.jl")
 using .Scheme
 
-export model, scheme
+export model, scheme, policy, steppol
 
 end # Module Gensimo.

@@ -10,7 +10,7 @@ using Distributions
 include("states.jl")
 using .States
 
-export scheme
+export scheme, policy, steppol
 
 function reward(s, a, sp)
     if sp == s
@@ -27,6 +27,7 @@ function transition(s, a)
     return Uniform(neighbours(s))
 end
 
+# Instantiate the scheme.
 scheme = QuickMDP( states = claims()
                  , actions = [:default]
                  , discount = .95
@@ -35,4 +36,29 @@ scheme = QuickMDP( states = claims()
                  , initialstate=Deterministic(claims()[8])
                  )
 
+# Produce a random policy.
+policy = RandomPolicy(scheme)
+
+"""Step through the policy for `nsteps` steps and print state information."""
+function steppol(nsteps=3)
+    step = 0
+    endstate = nothing
+    for (s, a, r, sp) in stepthrough( scheme
+                                    , policy
+                                    , "s,a,r,sp"
+                                    , max_steps=nsteps )
+        println("Step #$step")
+        println("==========")
+        println("State:\n$s")
+        println("Action: $a")
+        println("Reward: $r\n")
+        step += 1
+        endstate = sp
+    end
+    println("============================")
+    println("End state after $step steps:\n$endstate")
+end
+
+
 end # Module Scheme.
+
