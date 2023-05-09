@@ -211,7 +211,8 @@ function Base.show(io::IO, psy::PsychoState)
 end
 
 function Base.show(io::IO, clm::Claim)
-    services = join([ string( "       | ", service, "\n") for service ∈ clm.services ])
+    services = join([ string( "       | ", service, "\n")
+                      for service ∈ clm.services ])
     print( io
          , "       Team: ", clm.team
          , "\n"
