@@ -17,7 +17,6 @@ function baseplot(g) # Basic graph plotting with nice defaults.
     hidedecorations!(ax)
     hidespines!(ax)
     ax.aspect = DataAspect()
-
     # Return like `graphplot()`.
     return fig, ax, p
 end
