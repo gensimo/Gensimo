@@ -1,11 +1,14 @@
 module Gensimo
 
-include("model.jl")
-include("scheme.jl")
+include("states.jl")
 include("display.jl")
-using .Scheme
+using .States
 using .Display
 
-export model, scheme, policy, steppol, gplot
+export scheme, policy, steppol, gplot
+
+# Re-export everything from States.
+export State, state, state_from_services
+export phy, ϕ, psi, ψ, adm, α
 
 end # Module Gensimo.
