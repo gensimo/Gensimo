@@ -16,7 +16,7 @@ State
 module States
 
 
-export State, state, state_from_services
+export State, state, state_from_services, distance
 export phy, ϕ, psi, ψ, adm, α
 
 struct PhysioState
