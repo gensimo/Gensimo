@@ -1,11 +1,18 @@
 using Dates
 using Distributions, StatsBase
 
+# Number of clients.
+nclients = 2
+
 # Define the time frame.
 epoch = Date(2020)
 eschaton = Date(2023)
 era = eschaton - epoch
-null = Dates.value(epoch)
+today = epoch
+
+# Define a 'history' object tracking states of each agent over the time steps.
+history = Dict(i => [ state() ] for i in 1:nclients)
+
 
 # Make a naive bimodal distribution using Gaussians.
 μ₁ = epoch + Dates.Day(14) |> Dates.value
@@ -28,4 +35,5 @@ function p( n # Size of initial population.
     m = k - n
     return binomial(n, m) * (λ*t)^m * (1 - λ*t)^(n-m)
 end
+
 

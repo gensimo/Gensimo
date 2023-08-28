@@ -19,12 +19,20 @@ module States
 export State, state, state_from_services, distance
 export phy, ϕ, psi, ψ, adm, α
 
+using Dates, Printf
+
 struct PhysioState
     physical_health::Integer
 end
 
 struct PsychoState
     psychological_health::Integer
+end
+
+struct Service
+    label::String
+    date::Date
+    cost::Float64
 end
 
 struct AdminState
@@ -187,6 +195,10 @@ end
 
 function Base.show(io::IO, psy::PsychoState)
     print(io, "Psychological Health: ", psy.psychological_health, "%")
+end
+
+function Base.show(io::IO, service::Service)
+    print(s.label, " on ", s.date, " costing ", @sprintf "\$%.2f" s.cost)
 end
 
 function Base.show(io::IO, adm::AdminState)
