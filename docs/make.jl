@@ -6,6 +6,7 @@ makedocs( sitename = "Gensimo"
         , modules = [Gensimo]
         , pages = [ "Overview" => "index.md"
                   , "Context" => "index.md"
+                  , "API" => "api.md"
                   ]
         )
 
