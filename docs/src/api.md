@@ -1,5 +1,6 @@
 ### States ###
 
-```@docs
-state
+```@autodocs
+Modules = [Gensimo.States]
+Order = [:function, :type]
 ```
