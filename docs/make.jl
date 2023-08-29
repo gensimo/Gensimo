@@ -2,8 +2,7 @@ using Documenter
 using Gensimo
 
 makedocs( sitename = "Gensimo"
-        , format = Documenter.HTML( prettyurls = get(ENV, "CI", nothing)
-                                    == "true" )
+        , format = Documenter.HTML()
         , modules = [Gensimo]
         , pages = [ "Overview" => "index.md"
                   , "Context" => "index.md"
