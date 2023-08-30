@@ -5,7 +5,7 @@ makedocs( sitename = "Gensimo"
         , format = Documenter.HTML()
         , modules = [Gensimo]
         , pages = [ "Overview" => "index.md"
-                  , "Context" => "index.md"
+                  , "Context" => "context.md"
                   , "API" => "api.md"
                   ]
         )
