@@ -12,6 +12,6 @@ These dynamics are represented in the GENSIMO framework as a succession of clien
 ![client pathways](images/pathways-gen.png)
 Figure 1. _Client pathway from the GENSIMO perspective._
 
-Which state is followed by which action is dictated by the _policy_. Typically MDPs are used to find some form of _optimal_ policy, for example, using Dynamic Programming or Reinforcement Learning algorithms. Though this could be done in the GENSIMO framework, it is not the default approach. Rather, the policy represents the settings of the scheme -- that is, the settings of the modelled version of the scheme.
+Which state is followed by which action is dictated by the _policy_. Typically MDPs are used to find some form of _optimal_ policy, for example, using Dynamic Programming or Reinforcement Learning algorithms. Though this could be done in the GENSIMO framework, it is not the default approach. Rather, the policy represents the settings of the scheme -- that is, the settings of the _modelled_ version of the scheme.
 
 
