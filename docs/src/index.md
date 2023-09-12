@@ -34,11 +34,14 @@ The process of approving or denying a client service request may be simple and a
 
 By facilitating the use of custom and potentially many different sub-models for deliberative processes, the user can set up a policy to (1) mimic the real dynamics as closely as possible, (2) try out candidate improvements to the actual processes, (3) experiment with changes to the scheme or external legislation more broadly, amongst many other options. The intention is to have a portfolio of deliberative process models available as part of Gensimo (under construction) while users can add their own models if desired.
 
-Several theoretical and methodological principles can be used and mixed.
+Several theoretical and methodological principles can be used and mixed. At the time of writing, agent-based social simulation models as well as (iterated) games are being considered and developed. The outcome of a deliberative process is a new state of the client in question. This means the list of received services is updated if a request is approved, any changes to physical and mental health are recorded etc. Any changes to systemic and aggregate variables are updated after a deliberative process as well. This is done by the conductor module, see below.
 
+## Model Core -- Conductor Module ##
 
-// Consequences for client's mental health and satisfaction etc.
+Even though the MDP and the deliberative process plug-ins constitute the basis of Gensimo simulations, there are several considerations that warrant a central module -- we call it the _conductor_ -- in control of it all:
 
-## Model Outputs ##
+* Keeping time. The state changes do not, intrinsically, have a notion of time. There is just before and after. Clearly, in reality the timing of service requests is of considerable importance. Thus, the conductor needs to keep time and moreover it indicates 'when' state changes ought to occur, i.e. it issues time stamps to states.
+* Keeping score. An MDP is, in essence, without a state. This is in itself not problematic at all, indeed perhaps desirable. However, one typically wants simulations to yield a bundle of client pathways which means the states and their timestamps need to be collected somewhere. Thus, the conductor keeps the score.
+* System-level and aggregate variables. Various quantities of interest are not tied to any particular client, let alone a particular client state. Think of, overall cost of the scheme, labour time by insurance personnel handling client requests, cumulative waiting times and so on.
 
-
+In addition to the above, the conductor module is also the normal entry point for any simulation including batch runs.
