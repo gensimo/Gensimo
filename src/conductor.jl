@@ -67,5 +67,8 @@ pmf = DiscreteNonParametric(Dates.value.(ds), ps)
 
 # TODO: structure and constructor to set up a simulation object, i.e. Conductor.
 
-
-
+struct Conductor
+    states::Vector{State}
+    services::Vector{Service}
+    probabilities::Dict{State, AbstractArray}
+end

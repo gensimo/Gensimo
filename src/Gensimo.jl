@@ -8,7 +8,7 @@ using .Display
 export scheme, policy, steppol, gplot
 
 # Re-export everything from States.
-export State, state, state_from_services, distance
+export State, state, Service, state_from_services, distance, lift_from_data
 export phy, ϕ, psi, ψ, adm, α
 
 end # Module Gensimo.

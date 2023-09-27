@@ -16,8 +16,9 @@ State
 module States
 
 
-export State, state, state_from_services, distance
-export phy, ϕ, psi, ψ, adm, α
+export State, state, Service, distance
+export state_from_services, lift_from_data
+export phy, ϕ, psi, ψ, adm, α, ser, σ
 
 using Dates, Printf
 
@@ -31,14 +32,13 @@ end
 
 struct Service
     label::String
-    date::Date
     cost::Float64
 end
 
 struct AdminState
     portfolio::Tuple{String, String, String} # (Team, Branch, Division).
     manager::String                          # Team or case manager.
-    services::Vector{String}                 # Simplifyingly assumes one claim.
+    services::Vector{Service}                # Simplifyingly assumes one claim.
 end
 
 struct State
@@ -65,10 +65,15 @@ function α(s::State, services_only=true)
     end
 end
 
+function σ(s::State)
+    return map(service->service.label, s.administrative.services)
+end
+
 # ASCII aliases.
 phy = ϕ
 psy = ψ
 adm = α
+ser = σ
 
 """Universal (copy) constructor."""
 function state( state = nothing
@@ -198,7 +203,7 @@ function Base.show(io::IO, psy::PsychoState)
 end
 
 function Base.show(io::IO, service::Service)
-    print(s.label, " on ", s.date, " costing ", @sprintf "\$%.2f" s.cost)
+    print(io, "<", service.label, ">", " @ ", @sprintf "\$%.2f" service.cost)
 end
 
 function Base.show(io::IO, adm::AdminState)
@@ -232,5 +237,20 @@ function Base.show(io::IO, s::State)
 end
 
 
-# End of module.
+
+function lift_from_data( states # As list of list of service label strings.
+                       , costs  # Dictionary of service labels => Float64.
+                       , probabilities # Dictionary of state => probabilities.
+                       )
+    # First lift the services into the Service type via the `costs` dictionary.
+    services = Service.(keys(costs), values(costs))
+    # Then turn states into State types.
+    states = state_from_services.( map.( s->Service(s...)
+                                       , map.(s->(s, costs[s]), states) ) )
+    # Finally, make a new State => probabilities dictionary.
+    probabilities = Dict(s=>probabilities[σ(s)] for s in states)
+    # Deliver.
+    return states, services, probabilities
 end
+
+end # Module States.
