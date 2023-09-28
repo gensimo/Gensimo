@@ -1,6 +1,7 @@
 using Dates
 using Distributions, StatsBase
 
+
 # Number of clients.
 nclients = 2
 # Service request intensity, in mean requests per day.
@@ -36,39 +37,61 @@ function events(from_date, to_date, lambda)
 end
 
 struct Client
+    state::State      # Initial state of client.
     dayzero::Date     # Date of entering the scheme, e.g. date of accident.
     severity::Float64 # Multiplies the intensity of the request point process.
 end
 
-Client() = Client(rand(days(Metronome())), 1+rand(Exponential()))
+Client() = Client(state(), rand(days(Metronome())), 1+rand(Exponential()))
 
 function client_events(client::Client, to_date::Date)
     return events(client.dayzero, to_date, client.severity/Dates.days(Year(1)))
 end
 
-
-
-# Define a 'history' object tracking states of each agent over the time steps.
-history = Dict(i => Dict( date => [ state() ] for i in 1:nclients
-                                              for date in dates ) )
-
-
-# Make a naive bimodal distribution using Gaussians.
-μ₁ = epoch + Dates.Day(14) |> Dates.value
-μ₂ = epoch + Dates.Day(365) |> Dates.value
-σ₁ = 10
-σ₂ = 100
-f(x) = exp(-((x-μ₁)/σ₁)^2) + .5*exp(-((x-μ₂)/σ₂)^2)
-
-# Turn the distribution f(x) into a probability mass function.
-ds = epoch:Day(1):eschaton # From beginning to end, one day at a time.
-ps = f.(Dates.value.(ds)) / sum(f.(Dates.value.(ds)))
-pmf = DiscreteNonParametric(Dates.value.(ds), ps)
-
-# TODO: structure and constructor to set up a simulation object, i.e. Conductor.
-
-struct Conductor
-    states::Vector{State}
-    services::Vector{Service}
-    probabilities::Dict{State, AbstractArray}
+mutable struct Conductor
+    services::Vector{Service} # List of `Service`s (label, cost).
+    states::Vector{State}     # List of `State`s allowed (e.g. empirical).
+    epoch::Date               # Initial date.
+    eschaton::Date            # Final date.
+    probabilities::Dict{State, AbstractArray} # State transition probabilities.
+    clients::Vector{Client}   # `Client`s (dayzero, severity).
+    histories::Dict           # Each `Client`'s history (`Date`=>`State`).
 end
+
+function Conductor( services
+                  , states
+                  , epoch, eschaton
+                  , nclients=1
+                  , probabilities=nothing)
+    # Create n random `Client`s.
+    clients = [ Client() for i in 1:nclients ]
+    # Prepare a history for each client with no states against the `Date`s yet.
+    histories = Dict( client=>Dict( client_events(client, eschaton) .=> nothing)
+                      for client in clients )
+    # Provide an empty probabilities dictionary if `nothing` provided.
+    if isnothing(probabilities)
+        probabilities = Dict{State, AbstractArray}()
+    end
+    # Instantiate and deliver the object.
+    return Conductor( services
+                    , states
+                    , epoch
+                    , eschaton
+                    , probabilities
+                    , clients
+                    , histories )
+end
+
+function run(conductor::Conductor)
+end
+
+
+
+
+
+
+
+
+
+
+

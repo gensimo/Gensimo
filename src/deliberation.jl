@@ -1,6 +1,5 @@
-using Agents, Random
+using Agents, Random, Dates
 using POMDPTools # For `Deterministic`
-#using Gensimo, TACTAC
 
 @agent Client NoSpaceAgent begin
     state::State
@@ -17,6 +16,13 @@ end
     services::Dict{Service, Float64} # [ (services, probabilities) ]
 end
 
+# Make a properties struct instead of dictionary for performance.
+mutable struct Properties
+    step::Int64
+    services::Vector{Service}
+    states::Vector{State}
+end
+
 function initialise( states, services
                    ; nclients = 2
                    , nmanagers = 1
@@ -26,11 +32,10 @@ function initialise( states, services
     if isnothing(seed)
         seed = rand(RandomDevice(), 0:2^16)
     end
+
     model = ABM( Union{Client, Manager}
                ; rng = Xoshiro(seed) # MersenneTwister(seed)
-               , properties = Dict( :time => 0
-                                  , :services => services
-                                  , :states => states )
+               , properties = Properties(0, services, states)
                , warn = false
                )
     # Add clients.
@@ -64,11 +69,11 @@ function agent_step!(agent, model, restrict=true)
         s = α(agent.state)
         # Client requests a service, randomly.
         if restrict # Only request services that would yield legal states.
-            legal_states = [    vcat(s, service) for service in services
-                             if vcat(s, service) in states ]
+            legal_states = [    vcat(s, service) for service in model.services
+                           if state(services=vcat(s, service)) in model.states ]
             service = rand(model.rng, legal_states)[end]
         else # Request any service.
-            service = rand(model.rng, services)
+            service = rand(model.rng, model.services)
         end
         # Find a Manager, randomly.
         managers = [ a for a ∈ allagents(model) if typeof(a)==Manager ]
@@ -86,33 +91,20 @@ function agent_step!(agent, model, restrict=true)
 end
 
 function model_step!(model)
-    model.time += 1
+    model.step += 1
 end
 
 function transition(s, a)
     # Create a model instance with a just a manager.
     model = initialise(states, services, nclients=0, nmanagers=1)
     # Add a client agent with the requested state.
-    add_agent!(Client, model, state(services=s))
+    add_agent!(Client, model, state(s))
     # Evolve the model one step only.
     step!(model, agent_step!, model_step!)
     print(model[2])
     # Return the new state as a deterministic probability distribution.
     return Deterministic(α(model[2].state))
 end
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
