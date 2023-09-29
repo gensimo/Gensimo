@@ -1,9 +1,12 @@
 using Dates
 using Distributions, StatsBase
+using Agents
+
+include("deliberation.jl")
 
 
-# Number of clients.
-nclients = 2
+# Number of cases.
+ncases = 2
 # Service request intensity, in mean requests per day.
 λ = 1 / Dates.days(Year(1))
 
@@ -36,16 +39,16 @@ function events(from_date, to_date, lambda)
     return sort(events)
 end
 
-struct Client
-    state::State      # Initial state of client.
+struct Case
+    state::State      # Initial state of case.
     dayzero::Date     # Date of entering the scheme, e.g. date of accident.
     severity::Float64 # Multiplies the intensity of the request point process.
 end
 
-Client() = Client(state(), rand(days(Metronome())), 1+rand(Exponential()))
+Case() = Case(state(), rand(days(Metronome())), 1+rand(Exponential()))
 
-function client_events(client::Client, to_date::Date)
-    return events(client.dayzero, to_date, client.severity/Dates.days(Year(1)))
+function case_events(case::Case, to_date::Date)
+    return events(case.dayzero, to_date, case.severity/Dates.days(Year(1)))
 end
 
 mutable struct Conductor
@@ -54,20 +57,22 @@ mutable struct Conductor
     epoch::Date               # Initial date.
     eschaton::Date            # Final date.
     probabilities::Dict{State, AbstractArray} # State transition probabilities.
-    clients::Vector{Client}   # `Client`s (dayzero, severity).
-    histories::Dict           # Each `Client`'s history (`Date`=>`State`).
+    cases::Vector{Case}   # `Case`s (dayzero, severity).
+    histories::Dict           # Each `Case`'s history (`Date`=>`State`).
 end
 
 function Conductor( services
                   , states
                   , epoch, eschaton
-                  , nclients=1
+                  , ncases=1
                   , probabilities=nothing)
-    # Create n random `Client`s.
-    clients = [ Client() for i in 1:nclients ]
-    # Prepare a history for each client with no states against the `Date`s yet.
-    histories = Dict( client=>Dict( client_events(client, eschaton) .=> nothing)
-                      for client in clients )
+    # Create n random `Case`s.
+    cases = [ Case() for i in 1:ncases ]
+    # Prepare a history for each case with no states against the `Date`s yet.
+    histories = Dict( case=>Dict( vcat( case.dayzero
+                                      , case_events(case, eschaton) )
+                                 .=> [case.state] )
+                      for case in cases )
     # Provide an empty probabilities dictionary if `nothing` provided.
     if isnothing(probabilities)
         probabilities = Dict{State, AbstractArray}()
@@ -78,11 +83,29 @@ function Conductor( services
                     , epoch
                     , eschaton
                     , probabilities
-                    , clients
+                    , cases
                     , histories )
 end
 
-function run(conductor::Conductor)
+function process!(conductor::Conductor)
+    # Treat every case separately.
+    for case in conductor.cases
+        # First create a model with no clients and one manager.
+        model = initialise( conductor.states
+                          , conductor.services
+                          , nclients=0
+                          , nmanagers=1 )
+        # Add a client agent for this case.
+        add_agent!(Client, model, case.state)
+        # Run model for as many steps as events in case. Collect data.
+        dates = collect(keys(conductor.histories[case])) # Dates of events.
+        n = length(dates) - 1 # Number of events, minus one for initial state.
+        df, _ = run!(model, agent_step!, model_step!, n, adata=[:state]) # Data.
+        # Keep only `Client` agent `State`s. Convert from `State?` type.
+        states = convert.(State, df[df.:agent_type .== :Client, :state])
+        # Update history in `Conductor` object.
+        conductor.histories[case] = Dict(dates .=> states)
+    end
 end
 
 
