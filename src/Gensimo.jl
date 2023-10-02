@@ -9,6 +9,7 @@ export scheme, policy, steppol, gplot
 
 # Re-export everything from States.
 export State, state, Service, state_from_services, distance, lift_from_data
-export phy, ϕ, psi, ψ, adm, α
+export cost, costs
+export phy, ϕ, psi, ψ, adm, α, ser, σ
 
 end # Module Gensimo.

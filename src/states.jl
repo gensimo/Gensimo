@@ -19,6 +19,7 @@ module States
 export State, state, Service, distance
 export state_from_services, lift_from_data
 export phy, ϕ, psi, ψ, adm, α, ser, σ
+export cost, costs
 
 using Dates, Printf
 
@@ -69,6 +70,18 @@ function σ(s::State)
     return map(service->service.label, s.administrative.services)
 end
 
+function costs(state::State)
+    if isempty(α(state))
+        return [0]
+    else
+        return map(service->service.cost, α(state))
+    end
+end
+
+function cost(state::State)
+    return sum(costs(state))
+end
+#
 # ASCII aliases.
 phy = ϕ
 psy = ψ

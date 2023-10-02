@@ -4,30 +4,9 @@ using Agents
 
 include("deliberation.jl")
 
-
-# Number of cases.
-ncases = 2
-# Service request intensity, in mean requests per day.
-λ = 1 / Dates.days(Year(1))
-
-struct Metronome
-    epoch::Date
-    eschaton::Date
-end
-
-Metronome() = Metronome(Date(2020), Date(2023))
-
-function days(epoch::Date, eschaton::Date)
-    return epoch:Day(1):eschaton
-end
-
-function days(m::Metronome)
-    return days(m.epoch, m.eschaton)
-end
-
 function events(from_date, to_date, lambda)
     # Get a list of the dates under consideration.
-    dates = days(from_date, to_date)
+    dates = from_date:Day(1):to_date
     # Get the overall intensity for the period.
     Λ = length(dates)*lambda
     # Get the number of events from the corresponding Poisson distribution.
@@ -45,7 +24,9 @@ struct Case
     severity::Float64 # Multiplies the intensity of the request point process.
 end
 
-Case() = Case(state(), rand(days(Metronome())), 1+rand(Exponential()))
+Case() = Case( state() # Empty state.
+             , rand(Date(2020):Day(1):Date(2023)) # Random day zero.
+             , 1+rand(Exponential()) ) # Random severity.
 
 function case_events(case::Case, to_date::Date)
     return events(case.dayzero, to_date, case.severity/Dates.days(Year(1)))
@@ -57,7 +38,7 @@ mutable struct Conductor
     epoch::Date               # Initial date.
     eschaton::Date            # Final date.
     probabilities::Dict{State, AbstractArray} # State transition probabilities.
-    cases::Vector{Case}   # `Case`s (dayzero, severity).
+    cases::Vector{Case}       # `Case`s (dayzero, severity).
     histories::Dict           # Each `Case`'s history (`Date`=>`State`).
 end
 
@@ -87,7 +68,7 @@ function Conductor( services
                     , histories )
 end
 
-function process!(conductor::Conductor)
+function simulate!(conductor::Conductor)
     # Treat every case separately.
     for case in conductor.cases
         # First create a model with no clients and one manager.
@@ -107,6 +88,19 @@ function process!(conductor::Conductor)
         conductor.histories[case] = Dict(dates .=> states)
     end
 end
+
+
+function extract( conductor::Conductor
+                ; what=:costs )
+    return Dict( case =>
+                 ( [ collect(keys(c.histories[case])) ]
+                 # TODO: Convert below to Float64.
+                 , [ cost.(collect(values(c.histories[case]))) ] )
+                 for case in conductor.cases )
+end
+
+
+
 
 
 
