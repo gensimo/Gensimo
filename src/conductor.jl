@@ -1,5 +1,4 @@
-using Dates
-using Distributions, StatsBase
+using Distributions, StatsBase, Dates
 using Agents
 using DataStructures: OrderedDict
 
