@@ -1,6 +1,7 @@
 using Dates
 using Distributions, StatsBase
 using Agents
+using DataStructures: OrderedDict
 
 include("deliberation.jl")
 
@@ -50,9 +51,9 @@ function Conductor( services
     # Create n random `Case`s.
     cases = [ Case() for i in 1:ncases ]
     # Prepare a history for each case with no states against the `Date`s yet.
-    histories = Dict( case=>Dict( vcat( case.dayzero
-                                      , case_events(case, eschaton) )
-                                 .=> [case.state] )
+    histories = Dict( case=>OrderedDict( vcat( case.dayzero
+                                       , case_events(case, eschaton) )
+                                         .=> [case.state] )
                       for case in cases )
     # Provide an empty probabilities dictionary if `nothing` provided.
     if isnothing(probabilities)
@@ -82,10 +83,13 @@ function simulate!(conductor::Conductor)
         dates = sort(collect(keys(conductor.histories[case]))) # Event dates.
         n = length(dates) - 1 # Number of events, minus one for initial state.
         df, _ = run!(model, agent_step!, model_step!, n, adata=[:state]) # Data.
+        # Avoid funny business by converting the `agent_type` field to Strings.
+        df.agent_type = string.(df.agent_type)
         # Keep only `Client` agent `State`s. Convert from `State?` type.
-        states = convert.(State, df[df.:agent_type .== :Client, :state])
+        statesframe = df[df.:agent_type .== "Gensimo.Client", :state]
+        states = convert.(State, statesframe)
         # Update history in `Conductor` object.
-        conductor.histories[case] = Dict(dates .=> states)
+        conductor.histories[case] = OrderedDict(dates .=> states)
     end
 end
 
@@ -93,43 +97,12 @@ end
 function extract( conductor::Conductor
                 ; what=:costs )
     return Dict( case =>
-                 ( collect(keys(c.histories[case]))
+                 ( collect(keys(conductor.histories[case]))
                  # TODO: Convert below to Float64.
-                 , cost.(collect(values(c.histories[case]))) )
+                 , cost.(collect(values(conductor.histories[case]))) )
                  for case in conductor.cases )
 end
 
-# TODO: Migrate to display.jl.
-function datesplot(dates::Vector{Date}, values, labels=nothing)
-    # Use a decent Garamond for the plot.
-    set_theme!( fontsize=14
-              , fonts=(
-                      ; regular="Garamond"
-                      , bold="Garamond Bold"
-                      , italic="Garamond Italic"
-                      , bold_italic="Garamond Bold Italic" )
-              )
-    # Obtain fig and ax objects.
-    fig = Figure()
-    ax = Axis(fig[1, 1])
-    # Convert dates to integers, i.e. days since rounding epoch.
-    days = Dates.date2epochdays.(dates)
-    # Plot against those integers. Put labels if provided.
-    plt = scatterlines!(ax, days, values)
-    if !isnothing(labels)
-        text!( labels
-            , position=collect(zip(days, values))
-            , align=(:left, :bottom) )
-    end
-    # Then put the dates in place of those integers.
-    ax.xticks = (days, string.(dates))
-    # Quarter π rotation to avoid clutter.
-    ax.xticklabelrotation = π/4
-    # Show me what you got.
-    display(fig)
-    # Deliver.
-    return fig, ax, plt
-end
 
 
 

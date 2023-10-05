@@ -5,13 +5,13 @@ The state of a client is modelled by the following type tree:
 
 State
     - PhysioState
-        - Physical health
+        - Physical health           # As a percentage
     - PsychoState
-        - Psychological health
+        - Psychological health      # As a percentage.
     - AdminState
-        - Portfolio
-        - Manager
-        - [ Service ]
+        - Portfolio                 # (Team, Branch, Division)
+        - Manager                   # Team or case manager
+        - [ Service ]               # List of services (name and cost)
 """
 module States
 
