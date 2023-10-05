@@ -2,9 +2,7 @@ module Display
 
 using GraphMakie, Graphs, GLMakie, Dates
 
-export gplot, g, datesplot
-
-g = wheel_graph(5)
+export baseplot, gplot, datesplot
 
 function baseplot(g) # Basic graph plotting with nice defaults.
     fig, ax, p = graphplot( g

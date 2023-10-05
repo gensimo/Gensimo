@@ -1,17 +1,25 @@
 """
+    States
+
 Provides a core type and utilities for social insurance client states.
 
 The state of a client is modelled by the following type tree:
 
 State
-    - PhysioState
-        - Physical health           # As a percentage
-    - PsychoState
-        - Psychological health      # As a percentage.
-    - AdminState
-        - Portfolio                 # (Team, Branch, Division)
-        - Manager                   # Team or case manager
-        - [ Service ]               # List of services (name and cost)
+
+* PhysioState
+
+    * Physical health           # As a percentage
+
+* PsychoState
+
+    * Psychological health      # As a percentage.
+
+* AdminState
+
+    * Portfolio                 # (Team, Branch, Division)
+    * Manager                   # Team or case manager
+    * [ Service ]               # List of services (name and cost)
 """
 module States
 

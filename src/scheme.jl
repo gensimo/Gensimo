@@ -7,7 +7,7 @@ using POMDPs, QuickPOMDPs, POMDPModelTools, POMDPSimulators, QMDP
 using POMDPTools: Deterministic, Uniform, SparseCat, RandomPolicy
 using Distributions
 
-include("states.jl")
+include("States.jl")
 using .States
 
 export scheme, policy, steppol
