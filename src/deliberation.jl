@@ -1,6 +1,8 @@
 using Agents, Random, Dates
 using POMDPTools # For `Deterministic`
 
+import ..Gensimo: State, state, Service, α, ψ, cost
+
 @agent Client NoSpaceAgent begin
     state::State
 end

@@ -12,8 +12,9 @@ include("Display.jl")
 using .Display
 export baseplot, gplot, datesplot
 
-# Load and export essentials from conductor.jl.
-include("conductor.jl")
+# Import and re-export essentials from Conductor.
+include("Conductors.jl")
+using .Conductors
 export Case, case_events, events, Conductor, simulate, extract, simulate!
 
 

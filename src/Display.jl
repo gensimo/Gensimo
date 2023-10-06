@@ -2,6 +2,8 @@ module Display
 
 using GraphMakie, Graphs, GLMakie, Dates
 
+using ..Gensimo: State, state, cost
+
 export baseplot, gplot, datesplot
 
 function baseplot(g) # Basic graph plotting with nice defaults.
@@ -45,6 +47,49 @@ function gplot(g, labels=nothing) # Basic graph plotting with nice defaults.
     return fig, ax, p
 end
 
+function datesplot(conductor)
+    # Use a decent Garamond for the plot.
+    set_theme!( fontsize=14
+              , fonts=(
+                      ; regular="Garamond"
+                      , bold="Garamond Bold"
+                      , italic="Garamond Italic"
+                      , bold_italic="Garamond Bold Italic" )
+              )
+    # Obtain fig object.
+    fig = Figure()
+    axes = []
+    # Add axes for each Case.
+    for (i, case) in enumerate(conductor.cases)
+        # Make plots appear as rows.
+        ax = Axis( fig[i, 1]
+                 , xlabel=""
+                 , ylabel="Cumulative Cost [ \$ ]" )
+        # Link the axes, so they have the same scale.
+        if i > 1
+            linkxaxes!(axes[1], ax)
+            linkyaxes!(axes[1], ax)
+        end
+        # Collect dates and cost lists for this case from the Conductor object.
+        dates = collect(keys(conductor.histories[case]))
+        costs = cost.(collect(values(conductor.histories[case])))
+        # Convert dates to integers, i.e. days since rounding epoch.
+        days = Dates.date2epochdays.(dates)
+        # Plot against those integers. Put labels if provided.
+        plt = scatterlines!(ax, days, costs, color=:black)
+        # Then put the dates in place of those integers.
+        ax.xticks = (days, string.(dates))
+        # Quarter π rotation to avoid clutter.
+        ax.xticklabelrotation = π/4
+        # Add this Axis to the list.
+        push!(axes, ax)
+    end
+    # Show me what you got.
+    display(fig)
+    # Deliver.
+    return fig, axes, plt
+end
+
 function datesplot(dates::Vector{Date}, values, labels=nothing)
     # Use a decent Garamond for the plot.
     set_theme!( fontsize=14
@@ -56,15 +101,18 @@ function datesplot(dates::Vector{Date}, values, labels=nothing)
               )
     # Obtain fig and ax objects.
     fig = Figure()
-    ax = Axis(fig[1, 1])
+    ax = Axis( fig[1, 1]
+             , xlabel=""
+             , ylabel="Cumulative Cost [ \$ ]"
+             , title="Cost History")
     # Convert dates to integers, i.e. days since rounding epoch.
     days = Dates.date2epochdays.(dates)
     # Plot against those integers. Put labels if provided.
-    plt = scatterlines!(ax, days, values)
+    plt = scatterlines!(ax, days, values, color=:black)
     if !isnothing(labels)
         text!( labels
-            , position=collect(zip(days, values))
-            , align=(:left, :bottom) )
+             , position=collect(zip(days, values))
+             , align=(:left, :bottom) )
     end
     # Then put the dates in place of those integers.
     ax.xticks = (days, string.(dates))
