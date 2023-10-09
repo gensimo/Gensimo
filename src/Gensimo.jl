@@ -15,7 +15,8 @@ export baseplot, gplot, datesplot
 # Import and re-export essentials from Conductor.
 include("Conductors.jl")
 using .Conductors
-export Case, case_events, events, Conductor, simulate, extract, simulate!
+export Conductor, Case, extract, case_events, events
+export simulate, simulate_mdp!, simulate_abm!
 
 
 end # Module Gensimo.

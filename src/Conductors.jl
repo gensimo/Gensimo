@@ -5,8 +5,10 @@ using Agents
 using DataStructures: OrderedDict
 
 include("deliberation.jl")
+include("mdp.jl")
 
-export Conductor, Case, extract, simulate!, case_events, events
+export Conductor, Case, extract, case_events, events
+export simulate, simulate_mdp!, simulate_abm!
 
 function events(from_date, to_date, lambda)
     # Get a list of the dates under consideration.
@@ -82,14 +84,26 @@ function Conductor( services
                     , histories )
 end
 
-# function Conductor( services
-                  # , states
-                  # , epoch, eschaton
-                  # , probabilities=nothing )
-    # # Create a case for each state.
-# end
+function simulate!(conductor::Conductor, method::Symbol)
+    if method == :abm
+        simulate_abm!(conductor)
+    elseif method == :mdp
+        simulate_mdp!(conductor)
+    end
+end
 
-function simulate!(conductor::Conductor)
+function simulate_mdp!(conductor::Conductor)
+    # Treat every case separately.
+    for case in conductor.cases
+        dates = sort(collect(keys(conductor.histories[case]))) # Event dates.
+        n = length(dates) # Number of events.
+        states = get_history(conductor.states, conductor.states[1], n)
+        # Update history in `Conductor` object.
+        conductor.histories[case] = OrderedDict(dates .=> states)
+    end
+end
+
+function simulate_abm!(conductor::Conductor)
     # Treat every case separately.
     for case in conductor.cases
         # First create a model with no clients and one manager.

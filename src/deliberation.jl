@@ -25,7 +25,7 @@ mutable struct Properties
     states::Vector{State}
 end
 
-function initialise( states, services
+function initialise( states::Vector{State}, services::Vector{Service}
                    ; nclients = 2
                    , nmanagers = 1
                    , seed = nothing
@@ -96,7 +96,7 @@ function model_step!(model)
     model.step += 1
 end
 
-function transition(s, a)
+function _transition(s, a)
     # Create a model instance with a just a manager.
     model = initialise(states, services, nclients=0, nmanagers=1)
     # Add a client agent with the requested state.
