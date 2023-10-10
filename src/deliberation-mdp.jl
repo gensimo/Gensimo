@@ -1,4 +1,5 @@
-using POMDPs, QuickPOMDPs, POMDPModelTools, POMDPSimulators, QMDP
+using POMDPs: simulate
+using QuickPOMDPs, POMDPModelTools, POMDPSimulators, QMDP
 using POMDPTools: Deterministic, Uniform, SparseCat, RandomPolicy
 using Distributions
 
@@ -11,23 +12,25 @@ function reward(s, a, sp)
     end
 end
 
-function transition(s, a)
-    return SparseCat(states, Array(probabilities[s]))
+function make_transitionf(states, probabilities)
+    return (s, a) ->SparseCat(states, Array(probabilities[s]))
 end
 
 # Instantiate the scheme.
 initialise( states::Vector{State}
-          , state::State) = QuickMDP( states = states
-                                    , actions = [:default]
-                                    , discount = .95
-                                    , transition = transition
-                                    , reward = reward
-                                    , initialstate = Deterministic(state)
-                                    # , isterminal = s -> s ∈ terminalstates
-                                    )
+          , state::State
+          , probabilities ) = QuickMDP( states = states
+                                      , actions = [:default]
+                                      , discount = .95
+                                      , transition =
+                                        make_transitionf(states, probabilities)
+                                      , reward = reward
+                                      , initialstate = Deterministic(state)
+                                      # , isterminal = s -> s ∈ terminalstates
+                                      )
 
-function get_history(states, initialstate, nsteps)
-    model = initialise(states, initialstate)
+function get_history(states, initialstate, probabilities, nsteps)
+    model = initialise(states, initialstate, probabilities)
     policy = RandomPolicy(model)
     hr = HistoryRecorder(max_steps=nsteps)
     history = simulate(hr, model, policy)

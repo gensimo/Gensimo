@@ -16,7 +16,7 @@ export baseplot, gplot, datesplot
 include("Conductors.jl")
 using .Conductors
 export Conductor, Case, extract, case_events, events
-export simulate, simulate_mdp!, simulate_abm!
+export simulate!, simulate_mdp!, simulate_abm!
 
 
 end # Module Gensimo.

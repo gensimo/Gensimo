@@ -4,11 +4,11 @@ using Distributions, StatsBase, Dates
 using Agents
 using DataStructures: OrderedDict
 
-include("deliberation.jl")
-include("mdp.jl")
+include("deliberation-abm.jl")
+include("deliberation-mdp.jl")
 
 export Conductor, Case, extract, case_events, events
-export simulate, simulate_mdp!, simulate_abm!
+export simulate!, simulate_mdp!, simulate_abm!
 
 function events(from_date, to_date, lambda)
     # Get a list of the dates under consideration.
@@ -97,7 +97,10 @@ function simulate_mdp!(conductor::Conductor)
     for case in conductor.cases
         dates = sort(collect(keys(conductor.histories[case]))) # Event dates.
         n = length(dates) # Number of events.
-        states = get_history(conductor.states, conductor.states[1], n)
+        states = get_history( conductor.states
+                            , conductor.states[1]
+                            , conductor.probabilities
+                            , n )
         # Update history in `Conductor` object.
         conductor.histories[case] = OrderedDict(dates .=> states)
     end

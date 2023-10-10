@@ -47,7 +47,7 @@ function gplot(g, labels=nothing) # Basic graph plotting with nice defaults.
     return fig, ax, p
 end
 
-function datesplot(conductor)
+function datesplot(conductor; cases=nothing)
     # Use a decent Garamond for the plot.
     set_theme!( fontsize=14
               , fonts=(
@@ -59,8 +59,13 @@ function datesplot(conductor)
     # Obtain fig object.
     fig = Figure()
     axes = []
+    plt = nothing # Just so it is there to be assigned to in the loop below.
+    # If cases are provided, use only those, if not, use them all.
+    if isnothing(cases)
+        cases = conductor.cases
+    end
     # Add axes for each Case.
-    for (i, case) in enumerate(conductor.cases)
+    for (i, case) in enumerate(cases)
         # Make plots appear as rows.
         ax = Axis( fig[i, 1]
                  , xlabel=""
