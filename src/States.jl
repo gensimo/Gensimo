@@ -24,8 +24,8 @@ State
 module States
 
 
-export State, state, Service, distance
-export state_from_services, lift_from_data
+export State, state, Service, Portfolio, distance
+export lift_from_data
 export phy, ϕ, psi, ψ, adm, α, ser, σ
 export cost, costs
 
@@ -44,10 +44,20 @@ struct Service
     cost::Float64
 end
 
+struct Portfolio
+    team::String
+    branch::String
+    division::String
+end
+
+team(p::Portfolio) = p.team
+branch(p::Portfolio) = p.branch
+division(p::Portfolio) = p.division
+
 struct AdminState
-    portfolio::Tuple{String, String, String} # (Team, Branch, Division).
-    manager::String                          # Team or case manager.
-    services::Vector{Service}                # Simplifyingly assumes one claim.
+    portfolio::Portfolio       # (Team, Branch, Division).
+    manager::String            # Team or case manager.
+    services::Vector{Service}  # Simplifyingly assumes one claim.
 end
 
 struct State
@@ -113,7 +123,7 @@ function state( state = nothing
     else
         phi = 100
         psi = 100
-        pf = ("", "", "")
+        pf = Portfolio("", "", "")
         mn = ""
         sv = Vector{String}()
     end
@@ -139,8 +149,12 @@ function state( state = nothing
                 , AdminState(pf, mn, sv) )
 end
 
-function state_from_services(services)
+function state(services::Vector{Service})
     return state(services=services)
+end
+
+function state(services, portfolio, manager::String)
+    return state(services=services, portfolio=portfolio, manager=manager)
 end
 
 function Base.:(==)(c1::AdminState, c2::AdminState)
@@ -219,6 +233,14 @@ function Base.show(io::IO, phy::PhysioState)
     print(io, "Physical Health: ", phy.physical_health, "%")
 end
 
+function Base.show(io::IO, portfolio::Portfolio)
+    print( io, "\n"
+         , "  | Team: ", team(portfolio), "\n"
+         , "  | Branch: ", branch(portfolio), "\n"
+         , "  | Division: ", division(portfolio)
+         )
+end
+
 function Base.show(io::IO, psy::PsychoState)
     print(io, "Psychological Health: ", psy.psychological_health, "%")
 end
@@ -242,7 +264,7 @@ function Base.show(io::IO, adm::AdminState)
 end
 
 function Base.show(io::IO, s::State)
-    print( io
+    print( io, "\n"
          , "Physiological layer\n"
          , "-------------------\n"
          , "  ", s.physiological
@@ -262,16 +284,32 @@ end
 function lift_from_data( states # As list of list of service label strings.
                        , costs  # Dictionary of service labels => Float64.
                        , probabilities # Dictionary of state => probabilities.
+                       , portfolios # List of Team, Branch, Division _tuples_.
+                       , managers = nothing # List of managers [String]
                        )
     # First lift the services into the Service type via the `costs` dictionary.
     services = Service.(keys(costs), values(costs))
     # Then turn states into State types.
-    states = state_from_services.( map.( s->Service(s...)
-                                       , map.(s->(s, costs[s]), states) ) )
+    # First turn the `states` list-of-lists into a `Services` list-of-lists.
+    # Make label-cost pairs from the `states` list of list of labels.
+    label_cost_pairs = map.(s->(s, costs[s]), states)
+    # Then lift those into the `Service` type.
+    services_list_of_lists = map.(s->Service(s...), label_cost_pairs)
+    n = length(services_list_of_lists)
+    # Lift the portfolio tuples into the `Portfolio` type.
+    portfolios = map(t->Portfolio(t...), portfolios)
+    # Make up a list of managers if nothing provided.
+    if isnothing(managers)
+        managers = [ "Alex", "Blake", "Charlie", "Dee", "Evelyn" ]
+    end
+    # Make states of `services_list_of_lists` and random portfolio and managers.
+    states = state.( services_list_of_lists
+                   , rand(portfolios, n)
+                   , rand(managers, n) )
     # Finally, make a new State => probabilities dictionary.
     probabilities = Dict(s=>probabilities[σ(s)] for s in states)
     # Deliver.
-    return states, services, probabilities
+    return states, services, probabilities, portfolios, managers
 end
 
 end # Module States.

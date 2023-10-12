@@ -69,11 +69,20 @@ function agent_step!(agent, model, restrict=true)
     if typeof(agent) == Client
         # Extract the list of services the client's received to date.
         s = α(agent.state)
+        isterminal = false # Until established otherwise.
         # Client requests a service, randomly.
         if restrict # Only request services that would yield legal states.
-            legal_states = [    vcat(s, service) for service in model.services
-                           if state(services=vcat(s, service)) in model.states ]
-            service = rand(model.rng, legal_states)[end]
+            legal_states = [ α(state) for state in model.states
+                             if length(α(state)) == length(s)+1
+                             && α(state)[1:length(s)] == s ]
+            # legal_states = [    vcat(s, service) for service in model.services
+                           # if state(services=vcat(s, service)) in model.states ]
+            if isempty(legal_states)
+                isterminal = true
+                service = rand(model.rng, model.services) # Dummy service!
+            else
+                service = rand(model.rng, legal_states)[end]
+            end
         else # Request any service.
             service = rand(model.rng, model.services)
         end
@@ -84,7 +93,9 @@ function agent_step!(agent, model, restrict=true)
         if rand(model.rng) < m.services[service]
             # New administrative state (α) is old one plus new service.
             newservicelist = vcat(α(agent.state), service)
-            agent.state = state(agent.state, services=newservicelist)
+            if !isterminal
+                agent.state = state(agent.state, services=newservicelist)
+            end
         else
             ψprime = round(Int, .9 * ψ(agent.state))
             agent.state = state(agent.state, ψ=ψprime)

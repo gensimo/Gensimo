@@ -4,7 +4,7 @@ using GraphMakie, Graphs, GLMakie, Dates
 
 using ..Gensimo: State, state, cost
 
-export baseplot, gplot, datesplot
+export baseplot, gplot, costseriesplot
 
 function baseplot(g) # Basic graph plotting with nice defaults.
     fig, ax, p = graphplot( g
@@ -47,7 +47,19 @@ function gplot(g, labels=nothing) # Basic graph plotting with nice defaults.
     return fig, ax, p
 end
 
-function datesplot(conductor; cases=nothing)
+function costseriesplot(conductor; cases=nothing, layout=:ensemble)
+    # Use appropriate back-end function.
+    layout == :ensemble &&
+        begin
+            return costseriesplot_ensemble(conductor, cases=cases)
+        end
+    layout == :tiled &&
+        begin
+            return costseriesplot_tiled(conductor, cases=cases)
+        end
+end
+
+function costseriesplot_ensemble(conductor; cases=nothing)
     # Use a decent Garamond for the plot.
     set_theme!( fontsize=14
               , fonts=(
@@ -56,7 +68,50 @@ function datesplot(conductor; cases=nothing)
                       , italic="Garamond Italic"
                       , bold_italic="Garamond Bold Italic" )
               )
-    # Obtain fig object.
+    # Obtain Figure and Axis objects.
+    fig = Figure()
+    ax = Axis( fig[1, 1]
+             , ylabel="cumulative cost [ \$ ]" )
+    # If cases are provided, use only those, if not, use them all.
+    if isnothing(cases)
+        cases = conductor.cases
+    end
+    # Iterate over cases to add series to axis.
+    for case in cases
+        # Collect dates and cost lists for this case from the Conductor object.
+        dates = collect(keys(conductor.histories[case]))
+        costs = cost.(collect(values(conductor.histories[case])))
+        # Convert dates to integers, i.e. days since rounding epoch.
+        days = Dates.date2epochdays.(dates)
+        # Plot against those integers.
+        scatterlines!(ax, days, costs, color=:black)
+    end
+    # Get the tick marks so there are 11 ticks on the horizontal axis.
+    ndays_epoch = Dates.date2epochdays(conductor.epoch)
+    ndays_eschaton = Dates.date2epochdays(conductor.eschaton)
+    step = floor((ndays_eschaton - ndays_epoch) / 10)
+    days = ndays_epoch:step:ndays_eschaton
+    dates = Dates.epochdays2date.(days)
+    # Then put the dates in place of those integers.
+    ax.xticks = (days, string.(dates))
+    # Quarter π rotation to avoid clutter.
+    ax.xticklabelrotation = π/4
+    # Show me what you got.
+    display(fig)
+    # Deliver.
+    return fig, ax
+end
+
+function costseriesplot_tiled(conductor; cases=nothing)
+    # Use a decent Garamond for the plot.
+    set_theme!( fontsize=14
+              , fonts=(
+                      ; regular="Garamond"
+                      , bold="Garamond Bold"
+                      , italic="Garamond Italic"
+                      , bold_italic="Garamond Bold Italic" )
+              )
+    # Obtain Figure object.
     fig = Figure()
     axes = []
     plt = nothing # Just so it is there to be assigned to in the loop below.
@@ -69,7 +124,7 @@ function datesplot(conductor; cases=nothing)
         # Make plots appear as rows.
         ax = Axis( fig[i, 1]
                  , xlabel=""
-                 , ylabel="Cumulative Cost [ \$ ]" )
+                 , ylabel="cumulative cost [ \$ ]" )
         # Link the axes, so they have the same scale.
         if i > 1
             linkxaxes!(axes[1], ax)
@@ -80,7 +135,7 @@ function datesplot(conductor; cases=nothing)
         costs = cost.(collect(values(conductor.histories[case])))
         # Convert dates to integers, i.e. days since rounding epoch.
         days = Dates.date2epochdays.(dates)
-        # Plot against those integers. Put labels if provided.
+        # Plot against those integers.
         plt = scatterlines!(ax, days, costs, color=:black)
         # Then put the dates in place of those integers.
         ax.xticks = (days, string.(dates))

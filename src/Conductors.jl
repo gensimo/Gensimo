@@ -34,6 +34,11 @@ Case() = Case( state() # Empty state.
              , rand(Date(2020):Day(1):Date(2023)) # Random day zero.
              , 1+rand(Exponential()) ) # Random severity.
 
+Case(portfolio, manager) = Case( state( portfolio=portfolio
+                                      , manager=manager ) # Empty state.
+                               , rand(Date(2020):Day(1):Date(2023)) # Day 0.
+                               , 1+rand(Exponential()) ) # Random severity.
+
 function case_events(case::Case, to_date::Date)
     return events(case.dayzero, to_date, case.severity/Dates.days(Year(1)))
 end
@@ -50,21 +55,25 @@ end
 
 
 """
-    Conductor( services
-             , states
+    Conductor( services, states
              , epoch, eschaton
              , ncases=1
+             , portfolios=nothing, managers=nothing
              , probabilities=nothing )
 
 Create a Conductor object for use with deliberation ABMs.
 """
-function Conductor( services
-                  , states
-                  , epoch, eschaton
+function Conductor( services::Vector{Service}, states::Vector{State}
+                  , epoch::Date, eschaton::Date
                   , ncases=1
+                  ; portfolios=nothing, managers=nothing
                   , probabilities=nothing )
-    # Create n random `Case`s.
-    cases = [ Case() for i in 1:ncases ]
+    # Create n random `Case`s, using `portfolios` and `managers` if provided.
+    if !isnothing(portfolios) && !isnothing(managers)
+        cases = [ Case(rand(portfolios), rand(managers)) for i in 1:ncases ]
+    else
+        cases = [ Case() for i in 1:ncases ]
+    end
     # Prepare a history for each case with no states against the `Date`s yet.
     histories = Dict( case=>OrderedDict( vcat( case.dayzero
                                        , case_events(case, eschaton) )
@@ -84,7 +93,7 @@ function Conductor( services
                     , histories )
 end
 
-function simulate!(conductor::Conductor, method::Symbol)
+function simulate!(conductor::Conductor; method::Symbol)
     if method == :abm
         simulate_abm!(conductor)
     elseif method == :mdp
