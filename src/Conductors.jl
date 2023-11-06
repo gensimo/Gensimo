@@ -7,6 +7,9 @@ using DataStructures: OrderedDict
 include("deliberation-abm.jl")
 include("deliberation-mdp.jl")
 
+include("deliberation-zzz.jl")
+import .ZZZ
+
 export Conductor, Case, extract, case_events, events
 export simulate!, simulate_mdp!, simulate_abm!
 
@@ -110,6 +113,35 @@ function simulate_mdp!(conductor::Conductor)
                             , conductor.states[1]
                             , conductor.probabilities
                             , n )
+        # Update history in `Conductor` object.
+        conductor.histories[case] = OrderedDict(dates .=> states)
+    end
+end
+
+function simulate_zzz!(conductor::Conductor)
+    # Treat every case separately.
+    for case in conductor.cases
+        # First create a model with no clients and one manager.
+        model = ZZZ.initialise( conductor.states
+                              , conductor.services
+                              , nclients=0
+                              , nmanagers=1 )
+        # Add a client agent for this case.
+        add_agent!(ZZZ.Client, model, case.state)
+        # Run model for as many steps as events in case. Collect data.
+        dates = sort(collect(keys(conductor.histories[case]))) # Event dates.
+        n = length(dates) - 1 # Number of events, minus one for initial state.
+        df, _ = run!( model
+                    , ZZZ.agent_step!
+                    , ZZZ.model_step!
+                    , n
+                    , adata=[:state] ) # Harvest simulation data.
+        # Avoid funny business by converting the `agent_type` field to Strings.
+        df.agent_type = string.(df.agent_type)
+        # Keep only `Client` agent `State`s. Convert from `State?` type.
+        statesframe = df[ df.:agent_type .== "Gensimo.Conductors.ZZZ.Client"
+                        , :state]
+        states = convert.(State, statesframe)
         # Update history in `Conductor` object.
         conductor.histories[case] = OrderedDict(dates .=> states)
     end
