@@ -5,7 +5,8 @@ using POMDPTools # For `Deterministic`
 
 using Gensimo: State, state, Service, α, ψ, cost
 
-export initialise, model_step, agent_step
+export initialise, model_step!, agent_step!, inspect
+export Client, Manager
 
 @agent Client NoSpaceAgent begin
     state::State
