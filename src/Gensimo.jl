@@ -16,8 +16,16 @@ export baseplot, gplot, costseriesplot
 # Import and re-export essentials from Conductor.
 include("Conductors.jl")
 using .Conductors
-export Conductor, Case, extract, case_events, events
+export Conductor, Case, extract, case_events, events, Context
 export simulate!, simulate_mdp!, simulate_abm!
 
+# Importing deliberation modules.
+include("DeliberationMDP.jl")
+import .DeliberationMDP as MDP
+export MDP
+
+include("DeliberationABM.jl")
+import .DeliberationABM as ABM
+export ABM
 
 end # Module Gensimo.

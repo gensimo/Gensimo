@@ -1,8 +1,25 @@
+module DeliberationMDP
+
 using POMDPs: simulate
 using QuickPOMDPs, POMDPModelTools, POMDPSimulators, QMDP
 using POMDPTools: Deterministic, Uniform, SparseCat, RandomPolicy
-using Distributions
+using DataStructures: OrderedDict
 
+using ..Gensimo
+
+function simulate!(conductor::Conductor)
+    # Treat every case separately.
+    for case in conductor.cases
+        dates = sort(collect(keys(conductor.histories[case]))) # Event dates.
+        n = length(dates) # Number of events.
+        states = get_history( conductor.context.states
+                            , conductor.context.states[1]
+                            , conductor.context.probabilities
+                            , n )
+        # Update history in `Conductor` object.
+        conductor.histories[case] = OrderedDict(dates .=> states)
+    end
+end
 
 function reward(s, a, sp)
     if sp == s
@@ -13,7 +30,7 @@ function reward(s, a, sp)
 end
 
 function make_transitionf(states, probabilities)
-    return (s, a) ->SparseCat(states, Array(probabilities[s]))
+    return (s, a) -> SparseCat(states, Array(probabilities[s]))
 end
 
 # Instantiate the scheme.
@@ -91,3 +108,5 @@ function pplot(A)
     labels = [ (string(i), pprint(state)) for (i, state) in enumerate(states) ]
     gplot(DiGraph(A), labels)
 end
+
+end # Module DeliberationMDP.

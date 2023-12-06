@@ -1,10 +1,37 @@
+module DeliberationABM
+
 using Agents, Random, Dates
 using POMDPTools # For `Deterministic`
+using DataStructures: OrderedDict
 
-import ..Gensimo: State, state, Service, α, ψ, cost
+using ..Gensimo
 
 @agent Client NoSpaceAgent begin
     state::State
+end
+
+function simulate!(conductor::Conductor)
+    # Treat every case separately.
+    for case in conductor.cases
+        # First create a model with no clients and one manager.
+        model = initialise( conductor.context.states
+                          , conductor.context.services
+                          , nclients=0
+                          , nmanagers=1 )
+        # Add a client agent for this case.
+        add_agent!(Client, model, case.state)
+        # Run model for as many steps as events in case. Collect data.
+        dates = sort(collect(keys(conductor.histories[case]))) # Event dates.
+        n = length(dates) - 1 # Number of events, minus one for initial state.
+        df, _ = run!(model, agent_step!, model_step!, n, adata=[:state]) # Data.
+        # Avoid funny business by converting the `agent_type` field to Strings.
+        df.agent_type = string.(df.agent_type)
+        # Keep only `Client` agent `State`s. Convert from `State?` type.
+        statesframe = df[df.:agent_type .== "Gensimo.DeliberationABM.Client", :state]
+        states = convert.(State, statesframe)
+        # Update history in `Conductor` object.
+        conductor.histories[case] = OrderedDict(dates .=> states)
+    end
 end
 
 function Base.show(io::IO, client::Client)
@@ -35,11 +62,11 @@ function initialise( states::Vector{State}, services::Vector{Service}
         seed = rand(RandomDevice(), 0:2^16)
     end
 
-    model = ABM( Union{Client, Manager}
-               ; rng = Xoshiro(seed) # MersenneTwister(seed)
-               , properties = Properties(0, services, states)
-               , warn = false
-               )
+    model = AgentBasedModel( Union{Client, Manager}
+                           ; rng = Xoshiro(seed) # MersenneTwister(seed)
+                           , properties = Properties(0, services, states)
+                           , warn = false
+                           )
     # Add clients.
     for _ in 1:nclients
         add_agent!(Client, model, rand(model.rng, states))
@@ -119,13 +146,4 @@ function _transition(s, a)
     return Deterministic(α(model[2].state))
 end
 
-
-
-
-
-
-
-
-
-
-
+end # Module DeliberationABM.

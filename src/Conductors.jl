@@ -4,14 +4,9 @@ using Distributions, StatsBase, Dates
 using Agents
 using DataStructures: OrderedDict
 
-include("deliberation-abm.jl")
-include("deliberation-mdp.jl")
+using ..Gensimo
 
-include("deliberation-zzz.jl")
-import .ZZZ
-
-export Conductor, Case, extract, case_events, events
-export simulate!, simulate_mdp!, simulate_abm!
+export Conductor, Case, extract, case_events, events, Context
 
 function events(from_date, to_date, lambda)
     # Get a list of the dates under consideration.
@@ -46,12 +41,30 @@ function case_events(case::Case, to_date::Date)
     return events(case.dayzero, to_date, case.severity/Dates.days(Year(1)))
 end
 
-mutable struct Conductor
+struct Context
+    # Necessary context --- these fields are needed by any simulation.
     services::Vector{Service} # List of `Service`s (label, cost).
-    states::Vector{State}     # List of `State`s allowed (e.g. empirical).
+    portfolios::Vector{Portfolio} # List of `Portfolio`s (team, branch, div.).
+    managers::Vector{String} # List of case manager names.
+    # Optional context --- these fields can be inferred or ignored.
+    states::Vector{State} # List of allowed `State`s (e.g. empirical).
+    probabilities::Dict{State, AbstractArray} # State transition probabilities.
+end
+
+Context(services, portfolios, managers) = Context( services
+                                                 , portfolios
+                                                 , managers
+                                                 , Vector{State}()
+                                                 , Dict{State, AbstractArray}()
+                                                 )
+
+mutable struct Conductor
+    context::Context # Alloweds `State`s, `Service`s etc.
+    # services::Vector{Service} # List of `Service`s (label, cost).
+    # states::Vector{State}     # List of `State`s allowed (e.g. empirical).
     epoch::Date               # Initial date.
     eschaton::Date            # Final date.
-    probabilities::Dict{State, AbstractArray} # State transition probabilities.
+    # probabilities::Dict{State, AbstractArray} # State transition probabilities.
     cases::Vector{Case}       # `Case`s (dayzero, severity).
     histories::Dict           # Each `Case`'s history (`Date`=>`State`).
 end
@@ -66,109 +79,27 @@ end
 
 Create a Conductor object for use with deliberation ABMs.
 """
-function Conductor( services::Vector{Service}, states::Vector{State}
+function Conductor( context::Context
+                  # services::Vector{Service}, states::Vector{State}
                   , epoch::Date, eschaton::Date
-                  , ncases=1
-                  ; portfolios=nothing, managers=nothing
-                  , probabilities=nothing )
-    # Create n random `Case`s, using `portfolios` and `managers` if provided.
-    if !isnothing(portfolios) && !isnothing(managers)
-        cases = [ Case(rand(portfolios), rand(managers)) for i in 1:ncases ]
-    else
-        cases = [ Case() for i in 1:ncases ]
-    end
+                  , ncases=1 )
+                  # ; portfolios=nothing, managers=nothing
+                  # , probabilities=nothing )
+    # Create n random `Case`s.
+    cases = [ Case(rand(context.portfolios)
+            , rand(context.managers))
+              for i in 1:ncases ]
     # Prepare a history for each case with no states against the `Date`s yet.
     histories = Dict( case=>OrderedDict( vcat( case.dayzero
                                        , case_events(case, eschaton) )
                                          .=> [case.state] )
                       for case in cases )
-    # Provide an empty probabilities dictionary if `nothing` provided.
-    if isnothing(probabilities)
-        probabilities = Dict{State, AbstractArray}()
-    end
     # Instantiate and deliver the object.
-    return Conductor( services
-                    , states
+    return Conductor( context
                     , epoch
                     , eschaton
-                    , probabilities
                     , cases
                     , histories )
-end
-
-function simulate!(conductor::Conductor; method::Symbol)
-    if method == :abm
-        simulate_abm!(conductor)
-    elseif method == :mdp
-        simulate_mdp!(conductor)
-    end
-end
-
-function simulate_mdp!(conductor::Conductor)
-    # Treat every case separately.
-    for case in conductor.cases
-        dates = sort(collect(keys(conductor.histories[case]))) # Event dates.
-        n = length(dates) # Number of events.
-        states = get_history( conductor.states
-                            , conductor.states[1]
-                            , conductor.probabilities
-                            , n )
-        # Update history in `Conductor` object.
-        conductor.histories[case] = OrderedDict(dates .=> states)
-    end
-end
-
-function simulate_zzz!(conductor::Conductor)
-    # Treat every case separately.
-    for case in conductor.cases
-        # First create a model with no clients and one manager.
-        model = ZZZ.initialise( conductor.states
-                              , conductor.services
-                              , nclients=0
-                              , nmanagers=1 )
-        # Add a client agent for this case.
-        add_agent!(ZZZ.Client, model, case.state)
-        # Run model for as many steps as events in case. Collect data.
-        dates = sort(collect(keys(conductor.histories[case]))) # Event dates.
-        n = length(dates) - 1 # Number of events, minus one for initial state.
-        df, _ = run!( model
-                    , ZZZ.agent_step!
-                    , ZZZ.model_step!
-                    , n
-                    , adata=[:state] ) # Harvest simulation data.
-        # Avoid funny business by converting the `agent_type` field to Strings.
-        df.agent_type = string.(df.agent_type)
-        # Keep only `Client` agent `State`s. Convert from `State?` type.
-        statesframe = df[ df.:agent_type .== "Gensimo.Conductors.ZZZ.Client"
-                        , :state]
-        states = convert.(State, statesframe)
-        # Update history in `Conductor` object.
-        conductor.histories[case] = OrderedDict(dates .=> states)
-    end
-end
-
-function simulate_abm!(conductor::Conductor)
-    # Treat every case separately.
-    for case in conductor.cases
-        # First create a model with no clients and one manager.
-        model = initialise( conductor.states
-                          , conductor.services
-                          , nclients=0
-                          , nmanagers=1 )
-        # Add a client agent for this case.
-        add_agent!(Client, model, case.state)
-        # Run model for as many steps as events in case. Collect data.
-        dates = sort(collect(keys(conductor.histories[case]))) # Event dates.
-        n = length(dates) - 1 # Number of events, minus one for initial state.
-        df, _ = run!(model, agent_step!, model_step!, n, adata=[:state]) # Data.
-        # Avoid funny business by converting the `agent_type` field to Strings.
-        df.agent_type = string.(df.agent_type)
-        # Keep only `Client` agent `State`s. Convert from `State?` type.
-        statesframe = df[df.:agent_type .== "Gensimo.Conductors.Client", :state]
-        states = convert.(State, statesframe)
-        # Update history in `Conductor` object.
-        conductor.histories[case] = OrderedDict(dates .=> states)
-    end
 end
 
 function extract( conductor::Conductor
