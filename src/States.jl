@@ -99,7 +99,7 @@ end
 function cost(state::State)
     return sum(costs(state))
 end
-#
+
 # ASCII aliases.
 phy = ϕ
 psy = ψ

@@ -59,12 +59,9 @@ Context(services, portfolios, managers) = Context( services
                                                  )
 
 mutable struct Conductor
-    context::Context # Alloweds `State`s, `Service`s etc.
-    # services::Vector{Service} # List of `Service`s (label, cost).
-    # states::Vector{State}     # List of `State`s allowed (e.g. empirical).
+    context::Context          # Allowed `State`s, `Service`s etc.
     epoch::Date               # Initial date.
     eschaton::Date            # Final date.
-    # probabilities::Dict{State, AbstractArray} # State transition probabilities.
     cases::Vector{Case}       # `Case`s (dayzero, severity).
     histories::Dict           # Each `Case`'s history (`Date`=>`State`).
 end
@@ -80,11 +77,8 @@ end
 Create a Conductor object for use with deliberation ABMs.
 """
 function Conductor( context::Context
-                  # services::Vector{Service}, states::Vector{State}
                   , epoch::Date, eschaton::Date
                   , ncases=1 )
-                  # ; portfolios=nothing, managers=nothing
-                  # , probabilities=nothing )
     # Create n random `Case`s.
     cases = [ Case(rand(context.portfolios)
             , rand(context.managers))
@@ -96,8 +90,7 @@ function Conductor( context::Context
                       for case in cases )
     # Instantiate and deliver the object.
     return Conductor( context
-                    , epoch
-                    , eschaton
+                    , epoch, eschaton
                     , cases
                     , histories )
 end
