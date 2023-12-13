@@ -25,11 +25,52 @@ module States
 
 
 export State, state, Service, Portfolio, distance
+export Factors, tovector, fromvector
 export lift_from_data
 export phy, ϕ, psi, ψ, adm, α, ser, σ
 export cost, costs
 
 using Dates, Printf
+
+struct Factors
+    # Primary --- Big 6 complexities.
+    physical_health::Float64
+    psychological_health::Float64
+    persistent_pain::Float64
+    service_environment::Float64
+    accident_response::Float64
+    recovery_expectations::Float64
+    # Secondary --- Supplementary complexities.
+    prior_health::Float64 # Docs suggest this is a list of pre-conditions.
+    prior_finance::Float64
+    fault::Float64 # Could be boolean.
+    support_optimism::Float64
+    sollicitor_engagement::Float64 # Could be boolean.
+    satisfaction::Float64 # Satisfaction with the scheme.
+end
+
+function tovector(fs::Factors)
+    return [ fs.physical_health
+           , fs.psychological_health
+           , fs.persistent_pain
+           , fs.service_environment
+           , fs.accident_response
+           , fs.recovery_expectations
+           , fs.prior_health
+           , fs.prior_finance
+           , fs.fault
+           , fs.support_optimism
+           , fs.sollicitor_engagement
+           , fs.satisfaction ]
+end
+
+function Base.:(-)(fs1::Factors, fs2::Factors)
+    return Factors((tovector(fs1) - tovector(fs2))...)
+end
+
+function Base.length(fs::Factors)
+    return 12
+end
 
 struct PhysioState
     physical_health::Integer
@@ -55,30 +96,33 @@ branch(p::Portfolio) = p.branch
 division(p::Portfolio) = p.division
 
 struct AdminState
+    assessment::Integer        # E.g. NIDS score ∈ [0, 6].
     portfolio::Portfolio       # (Team, Branch, Division).
     manager::String            # Team or case manager.
     services::Vector{Service}  # Simplifyingly assumes one claim.
 end
 
+AdminState(pf, mn, sv) = AdminState(-1, pf, mn, sv)
+
 struct State
-    physiological::PhysioState
-    psychological::PsychoState
+    factors::Factors
     administrative::AdminState
 end
 
-function ϕ(s::State)
-    return s.physiological.physical_health
+function tovector(s::State)
+    return tovector(s.factors)
 end
 
-function ψ(s::State)
-    return s.psychological.psychological_health
+function fromvector!(state::State, factors::Vector{Float64})
+    state.factors = Factors(factors...)
 end
 
 function α(s::State, services_only=true)
     if services_only
         return s.administrative.services
     else
-        return ( s.administrative.portfolio
+        return ( s.administrative.assessment
+               , s.administrative.portfolio
                , s.administrative.manager
                , s.administrative.services )
     end
@@ -101,38 +145,45 @@ function cost(state::State)
 end
 
 # ASCII aliases.
-phy = ϕ
-psy = ψ
 adm = α
 ser = σ
 
 """Universal (copy) constructor."""
 function state( state = nothing
-              ; ϕ = nothing
-              , ψ =  nothing
+              ; factors = nothing
+              , assessment = nothing
               , portfolio = nothing
               , manager = nothing
               , services = nothing
               )
     # If `state` provided, harvest fields for default values.
     if !isnothing(state)
-        phi = phy(state)
-        psi = psy(state)
-        pf, mn, sv = adm(state, false)
+        factors = state.factors
+        # phi = phy(state)
+        # psi = psy(state)
+        as, pf, mn, sv = adm(state, false)
     # If not, provide some defaults.
     else
-        phi = 100
-        psi = 100
+        fs = Factors(ones(Float64, 12)...)
+        # phi = 100
+        # psi = 100
+        as = -1
         pf = Portfolio("", "", "")
         mn = ""
         sv = Vector{String}()
     end
     # Then set or change any fields that are provided.
-    if !isnothing(ϕ)
-        phi = ϕ
+    if !isnothing(factors)
+        if typeof(factors) == Factors
+            fs = factors
+        elseif typeof(factors) == Vector{Float64}
+            fs = Factors(factors...)
+        else
+            error("Factors wrong type (use type Factors or Vector{Float64}).")
+        end
     end
-    if !isnothing(ψ)
-        psi = ψ
+    if !isnothing(assessment)
+        as = assessment
     end
     if !isnothing(portfolio)
         pf = portfolio
@@ -144,9 +195,8 @@ function state( state = nothing
         sv = services
     end
     # Finally, deliver the state struct.
-    return State( PhysioState(phi)
-                , PsychoState(psi)
-                , AdminState(pf, mn, sv) )
+    return State( fs
+                , AdminState(as, pf, mn, sv) )
 end
 
 function state(services::Vector{Service})
@@ -179,6 +229,8 @@ function distance(c1::AdminState, c2::AdminState)
     d=0
 
     # Abbreviate the nested fields.
+    assessment1 = c1.assessment
+    assessment2 = c2.assessment
     portfolio1 = c1.portfolio
     portfolio2 = c2.portfolio
     mngr1 = c1.manager
@@ -186,6 +238,10 @@ function distance(c1::AdminState, c2::AdminState)
     services1 = c1.services
     services2 = c2.services
 
+    # Different assessment means an extra distance of 1.
+    if assessment1 != assessment2
+        d += 1
+    end
     # Different team means an extra distance of 1. # TODO: Incorporate T, B, D.
     if portfolio1 != portfolio2
         d += 1
@@ -203,34 +259,17 @@ end
 
 """Return 'intervention' distance between overall states."""
 function distance(s1::State, s2::State)
-    # Start with nothing.
-    d = 0
-
     # Abbreviate deeply nestled fields.
-    ϕ1 = s1.physiological.physical_health
-    ψ1 = s1.psychological.psychological_health
-    ϕ2 = s2.physiological.physical_health
-    ψ2 = s2.psychological.psychological_health
+    fs1 = s1.factors
+    fs2 = s2.factors
     α1 = s1.administrative
     α2 = s2.administrative
-
-    # Any difference in physiological health adds 1 to distance.
-    if ϕ1 != ϕ2
-        d += 1
-    end
-    # Any difference in psychological health adds 1 to distance.
-    if ψ1 != ψ2
-        d += 1
-    end
-
-    d += distance(α1, α2)
-
+    # Compute Euclidean distance between factors vectors.
+    factord = (fs1 - fs2).^2 |> sum |> sqrt
+    # Compute administrative distance.
+    admind = distance(α1, α2)
     # Return the total distance.
-    return d
-end
-
-function Base.show(io::IO, phy::PhysioState)
-    print(io, "Physical Health: ", phy.physical_health, "%")
+    return factord + admind
 end
 
 function Base.show(io::IO, portfolio::Portfolio)
@@ -239,6 +278,10 @@ function Base.show(io::IO, portfolio::Portfolio)
          , "  | Branch: ", branch(portfolio), "\n"
          , "  | Division: ", division(portfolio)
          )
+end
+
+function Base.show(io::IO, phy::PhysioState)
+    print(io, "Physical Health: ", phy.physical_health, "%")
 end
 
 function Base.show(io::IO, psy::PsychoState)
@@ -253,6 +296,8 @@ function Base.show(io::IO, adm::AdminState)
     services = join([ string( "  | ", service, "\n")
                       for service ∈ adm.services ])
     print( io
+         , "  Assessment: ", adm.assessment
+         , "\n"
          , "  Portfolio: ", adm.portfolio
          , "\n"
          , "  Case manager: ", adm.manager
@@ -263,15 +308,28 @@ function Base.show(io::IO, adm::AdminState)
          )
 end
 
+function Base.show(io::IO, fs::Factors)
+    print( io
+         , "  Physical health: ", "\t ", fs.physical_health, "\n"
+         , "  Mental health: ", "\t ", fs.psychological_health, "\n"
+         , "  Persistent pain: ", "\t ", fs.persistent_pain, "\n"
+         , "  Service environment: ", "\t ", fs.service_environment, "\n"
+         , "  Accident response: ", "\t ", fs.accident_response, "\n"
+         , "  Recovery expectations: ", fs.recovery_expectations, "\n"
+         , "  Prior health: ", "\t ", fs.prior_health, "\n"
+         , "  Prior finance: ", "\t ", fs.prior_finance, "\n"
+         , "  Fault: ", "\t\t ", fs.fault, "\n"
+         , "  Support and optimism: ", " ", fs.support_optimism, "\n"
+         , "  Sollicitor engagement: ", fs.sollicitor_engagement, "\n"
+         , "  Satisfaction: ", "\t ", fs.satisfaction
+         )
+end
+
 function Base.show(io::IO, s::State)
     print( io, "\n"
-         , "Physiological layer\n"
-         , "-------------------\n"
-         , "  ", s.physiological
-         , "\n\n"
-         , "Psychological layer\n"
-         , "-------------------\n"
-         , "  ", s.psychological
+         , "Factors\n"
+         , "-------\n"
+         , s.factors
          , "\n\n"
          , "Administrative layer\n"
          , "--------------------\n"
