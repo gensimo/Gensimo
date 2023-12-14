@@ -29,4 +29,7 @@ include("DeliberationABM.jl")
 import .DeliberationABM as ABM
 export ABM
 
+include("DeliberationNGCM.jl")
+import .DeliberationNGCM as NGCM
+
 end # Module Gensimo.
