@@ -27,7 +27,8 @@ function simulate!(conductor::Conductor)
         # Avoid funny business by converting the `agent_type` field to Strings.
         df.agent_type = string.(df.agent_type)
         # Keep only `Client` agent `State`s. Convert from `State?` type.
-        statesframe = df[df.:agent_type .== "Gensimo.DeliberationABM.Client", :state]
+        statesframe = df[ df.:agent_type .== "Gensimo.DeliberationABM.Client"
+                        , :state]
         states = convert.(State, statesframe)
         # Update history in `Conductor` object.
         conductor.histories[case] = OrderedDict(dates .=> states)

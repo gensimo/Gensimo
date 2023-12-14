@@ -30,9 +30,9 @@ export lift_from_data
 export phy, ϕ, psi, ψ, adm, α, ser, σ
 export cost, costs
 
-using Dates, Printf
+using StaticArrays, Dates, Printf
 
-struct Factors
+struct Factors <: FieldVector{12, Float64}
     # Primary --- Big 6 complexities.
     physical_health::Float64
     psychological_health::Float64
@@ -49,6 +49,10 @@ struct Factors
     satisfaction::Float64 # Satisfaction with the scheme.
 end
 
+# Black magic making, e.g. added Factors be of Factor type again.
+StaticArrays.similar_type(::Type{Factors}, ::Type{Float64}, s::Size{(12,)}) =
+Factors
+
 function tovector(fs::Factors)
     return [ fs.physical_health
            , fs.psychological_health
@@ -62,14 +66,6 @@ function tovector(fs::Factors)
            , fs.support_optimism
            , fs.sollicitor_engagement
            , fs.satisfaction ]
-end
-
-function Base.:(-)(fs1::Factors, fs2::Factors)
-    return Factors((tovector(fs1) - tovector(fs2))...)
-end
-
-function Base.length(fs::Factors)
-    return 12
 end
 
 struct PhysioState
@@ -117,6 +113,14 @@ function fromvector!(state::State, factors::Vector{Float64})
     state.factors = Factors(factors...)
 end
 
+function ϕ(s::State)
+    return s.factors.physical_health
+end
+
+function ψ(s::State)
+    return s.factors.psychological_health
+end
+
 function α(s::State, services_only=true)
     if services_only
         return s.administrative.services
@@ -145,6 +149,8 @@ function cost(state::State)
 end
 
 # ASCII aliases.
+phy = ϕ
+psy = ψ
 adm = α
 ser = σ
 
@@ -155,6 +161,8 @@ function state( state = nothing
               , portfolio = nothing
               , manager = nothing
               , services = nothing
+              , ϕ = nothing
+              , ψ = nothing
               )
     # If `state` provided, harvest fields for default values.
     if !isnothing(state)
@@ -193,6 +201,12 @@ function state( state = nothing
     end
     if !isnothing(services)
         sv = services
+    end
+    if !isnothing(ϕ)
+        fs = Factors(ϕ, fs[2:12]...)
+    end
+    if !isnothing(ψ)
+        fs = Factors(fs[1], ψ, fs[3:12]...)
     end
     # Finally, deliver the state struct.
     return State( fs
@@ -311,7 +325,7 @@ end
 function Base.show(io::IO, fs::Factors)
     print( io
          , "  Physical health: ", "\t ", fs.physical_health, "\n"
-         , "  Mental health: ", "\t ", fs.psychological_health, "\n"
+         , "  Psychological health: ", " ", fs.psychological_health, "\n"
          , "  Persistent pain: ", "\t ", fs.persistent_pain, "\n"
          , "  Service environment: ", "\t ", fs.service_environment, "\n"
          , "  Accident response: ", "\t ", fs.accident_response, "\n"

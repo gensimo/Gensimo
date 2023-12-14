@@ -4,9 +4,10 @@ module Gensimo
 include("States.jl")
 using .States
 export State, state, Service, Portfolio
+export Factors, tovector, fromvector
 export distance, lift_from_data
 export cost, costs
-export phy, ϕ, psi, ψ, adm, α, ser, σ
+export phy, ϕ, psy, ψ, adm, α, ser, σ
 
 # Import and re-export essentials from Display.
 include("Display.jl")
