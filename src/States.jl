@@ -25,7 +25,7 @@ module States
 
 
 export State, state, Service, Portfolio, distance
-export Factors, tovector, fromvector
+export Factors, fromvector
 export lift_from_data
 export phy, ϕ, psi, ψ, adm, α, ser, σ
 export cost, costs
@@ -68,14 +68,6 @@ function tovector(fs::Factors)
            , fs.satisfaction ]
 end
 
-struct PhysioState
-    physical_health::Integer
-end
-
-struct PsychoState
-    psychological_health::Integer
-end
-
 struct Service
     label::String
     cost::Float64
@@ -100,13 +92,31 @@ end
 
 AdminState(pf, mn, sv) = AdminState(-1, pf, mn, sv)
 
+struct CaseHistory
+    events::Dict{Date, AdminState}
+end
+
+date(c::CaseHistory) = dates[end]
+dates(c::CaseHistory) = sort(collect(keys(c.events)))
+
+event(c::CaseHistory) = events[end]
+events(c::CaseHistory) = collect(values(sort(c.events)))
+
+assessment(c::CaseHistory) = event(c).assessment
+assessments(c::CaseHistory) = map(event->event.assessment, events(c))
+
+portfolio(c::CaseHistory) = event(c).portfolio
+portfolios(c::CaseHistory) = map(event->event.portfolio, events(c))
+
+manager(c::CaseHistory) = event(c).manager
+managers(c::CaseHistory) = map(event->event.manager, events(c))
+
+service(c::CaseHistory) = event(c).service
+services(c::CaseHistory) = map(event->event.service, events(c))
+
 struct State
     factors::Factors
     administrative::AdminState
-end
-
-function tovector(s::State)
-    return tovector(s.factors)
 end
 
 function fromvector!(state::State, factors::Vector{Float64})
@@ -292,14 +302,6 @@ function Base.show(io::IO, portfolio::Portfolio)
          , "  | Branch: ", branch(portfolio), "\n"
          , "  | Division: ", division(portfolio)
          )
-end
-
-function Base.show(io::IO, phy::PhysioState)
-    print(io, "Physical Health: ", phy.physical_health, "%")
-end
-
-function Base.show(io::IO, psy::PsychoState)
-    print(io, "Psychological Health: ", psy.psychological_health, "%")
 end
 
 function Base.show(io::IO, service::Service)
