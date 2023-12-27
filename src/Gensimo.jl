@@ -3,7 +3,8 @@ module Gensimo
 # Import and re-export essentials from States.
 include("States.jl")
 using .States
-export State, state, Service, Portfolio
+export State, state
+export Service, Segment, Event, Claim
 export Factors, tovector, fromvector
 export distance, lift_from_data
 export cost, costs

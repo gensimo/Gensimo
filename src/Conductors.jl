@@ -32,7 +32,7 @@ Case() = Case( state() # Empty state.
              , rand(Date(2020):Day(1):Date(2023)) # Random day zero.
              , 1+rand(Exponential()) ) # Random severity.
 
-Case(portfolio, manager) = Case( state( portfolio=portfolio
+Case(segment, manager) = Case( state( segment=segment
                                       , manager=manager ) # Empty state.
                                , rand(Date(2020):Day(1):Date(2023)) # Day 0.
                                , 1+rand(Exponential()) ) # Random severity.
@@ -44,15 +44,15 @@ end
 struct Context
     # Necessary context --- these fields are needed by any simulation.
     services::Vector{Service} # List of `Service`s (label, cost).
-    portfolios::Vector{Portfolio} # List of `Portfolio`s (team, branch, div.).
+    segments::Vector{Segment} # List of `Segment`s (team, branch, div.).
     managers::Vector{String} # List of case manager names.
     # Optional context --- these fields can be inferred or ignored.
     states::Vector{State} # List of allowed `State`s (e.g. empirical).
     probabilities::Dict{State, AbstractArray} # State transition probabilities.
 end
 
-Context(services, portfolios, managers) = Context( services
-                                                 , portfolios
+Context(services, segments, managers) = Context( services
+                                                 , segments
                                                  , managers
                                                  , Vector{State}()
                                                  , Dict{State, AbstractArray}()
@@ -71,7 +71,7 @@ end
     Conductor( services, states
              , epoch, eschaton
              , ncases=1
-             , portfolios=nothing, managers=nothing
+             , segments=nothing, managers=nothing
              , probabilities=nothing )
 
 Create a Conductor object for use with deliberation ABMs.
@@ -80,7 +80,7 @@ function Conductor( context::Context
                   , epoch::Date, eschaton::Date
                   , ncases=1 )
     # Create n random `Case`s.
-    cases = [ Case(rand(context.portfolios)
+    cases = [ Case(rand(context.segments)
             , rand(context.managers))
               for i in 1:ncases ]
     # Prepare a history for each case with no states against the `Date`s yet.

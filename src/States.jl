@@ -17,14 +17,15 @@ State
 
 * AdminState
 
-    * Portfolio                 # (Team, Branch, Division)
+    * Segment                 # (Team, Branch, Division)
     * Manager                   # Team or case manager
     * [ Service ]               # List of services (name and cost)
 """
 module States
 
 
-export State, state, Service, Portfolio, distance
+export State, state, distance
+export Service, Segment, Event, Claim
 export Factors, fromvector
 export lift_from_data
 export phy, ϕ, psi, ψ, adm, α, ser, σ
@@ -41,7 +42,7 @@ struct Factors <: FieldVector{12, Float64}
     accident_response::Float64
     recovery_expectations::Float64
     # Secondary --- Supplementary complexities.
-    prior_health::Float64 # Docs suggest this is a list of pre-conditions.
+    prior_health::Float64 # Docs suggest this is a _list_ of pre-conditions.
     prior_finance::Float64
     fault::Float64 # Could be boolean.
     support_optimism::Float64
@@ -69,50 +70,61 @@ function tovector(fs::Factors)
 end
 
 struct Service
-    label::String
-    cost::Float64
+    label::String # Description of the service.
+    cost::Float64 # Monetary cost of the service in e.g. AUD.
+    labour::Integer # FTE cost of the service in person-hours
+    approved::Bool # Whether the service request is approved or denied.
 end
 
-struct Portfolio
-    team::String
-    branch::String
+label(s::Service) = s.label
+cost(s::Service) = s.cost
+labour(s::Service) = s.labour
+approved(s::Service) = s.approved
+
+struct Segment
     division::String
+    branch::String
+    team::String
+    manager::String
 end
 
-team(p::Portfolio) = p.team
-branch(p::Portfolio) = p.branch
-division(p::Portfolio) = p.division
+division(p::Segment) = p.division
+branch(p::Segment) = p.branch
+team(p::Segment) = p.team
+manager(p::Segment) = p.manager
+
+struct Event
+    date::Date # When did the change to the claim occur?
+    change::Union{ Integer # The assessment, e.g. NIDS.
+                 , Segment
+                 , Service }
+end
+
+date(e::Event) = e.date
+change(e::Event) = e.change
+Base.isless(e1::Event, e2::Event) = date(e1) < date(e2)
+
+struct Claim
+    events::Vector{Event}
+end
+
+Claim() = Claim(Vector{Event}())
+"""Return a new `Claim` with `Event` added."""
+Base.:(+)(c::Claim, e::Event) = Claim([c.events..., e])
+
+events(c::Claim) = c.events
+services(c::Claim) = [ change(event) for event in sort(events(c))
+                       if typeof(change(event)) == Service ]
+
 
 struct AdminState
     assessment::Integer        # E.g. NIDS score ∈ [0, 6].
-    portfolio::Portfolio       # (Team, Branch, Division).
+    segment::Segment       # (Team, Branch, Division).
     manager::String            # Team or case manager.
     services::Vector{Service}  # Simplifyingly assumes one claim.
 end
 
 AdminState(pf, mn, sv) = AdminState(-1, pf, mn, sv)
-
-struct CaseHistory
-    events::Dict{Date, AdminState}
-end
-
-date(c::CaseHistory) = dates[end]
-dates(c::CaseHistory) = sort(collect(keys(c.events)))
-
-event(c::CaseHistory) = events[end]
-events(c::CaseHistory) = collect(values(sort(c.events)))
-
-assessment(c::CaseHistory) = event(c).assessment
-assessments(c::CaseHistory) = map(event->event.assessment, events(c))
-
-portfolio(c::CaseHistory) = event(c).portfolio
-portfolios(c::CaseHistory) = map(event->event.portfolio, events(c))
-
-manager(c::CaseHistory) = event(c).manager
-managers(c::CaseHistory) = map(event->event.manager, events(c))
-
-service(c::CaseHistory) = event(c).service
-services(c::CaseHistory) = map(event->event.service, events(c))
 
 struct State
     factors::Factors
@@ -136,7 +148,7 @@ function α(s::State, services_only=true)
         return s.administrative.services
     else
         return ( s.administrative.assessment
-               , s.administrative.portfolio
+               , s.administrative.segment
                , s.administrative.manager
                , s.administrative.services )
     end
@@ -168,7 +180,7 @@ ser = σ
 function state( state = nothing
               ; factors = nothing
               , assessment = nothing
-              , portfolio = nothing
+              , segment = nothing
               , manager = nothing
               , services = nothing
               , ϕ = nothing
@@ -186,7 +198,7 @@ function state( state = nothing
         # phi = 100
         # psi = 100
         as = -1
-        pf = Portfolio("", "", "")
+        sm = Segment("", "", "", "")
         mn = ""
         sv = Vector{String}()
     end
@@ -203,8 +215,8 @@ function state( state = nothing
     if !isnothing(assessment)
         as = assessment
     end
-    if !isnothing(portfolio)
-        pf = portfolio
+    if !isnothing(segment)
+        sm = segment
     end
     if !isnothing(manager)
         mn = manager
@@ -220,15 +232,15 @@ function state( state = nothing
     end
     # Finally, deliver the state struct.
     return State( fs
-                , AdminState(as, pf, mn, sv) )
+                , AdminState(as, sm, mn, sv) )
 end
 
 function state(services::Vector{Service})
     return state(services=services)
 end
 
-function state(services, portfolio, manager::String)
-    return state(services=services, portfolio=portfolio, manager=manager)
+function state(services, segment, manager::String)
+    return state(services=services, segment=segment, manager=manager)
 end
 
 function Base.:(==)(c1::AdminState, c2::AdminState)
@@ -255,8 +267,8 @@ function distance(c1::AdminState, c2::AdminState)
     # Abbreviate the nested fields.
     assessment1 = c1.assessment
     assessment2 = c2.assessment
-    portfolio1 = c1.portfolio
-    portfolio2 = c2.portfolio
+    segment1 = c1.segment
+    segment2 = c2.segment
     mngr1 = c1.manager
     mngr2 = c2.manager
     services1 = c1.services
@@ -267,7 +279,7 @@ function distance(c1::AdminState, c2::AdminState)
         d += 1
     end
     # Different team means an extra distance of 1. # TODO: Incorporate T, B, D.
-    if portfolio1 != portfolio2
+    if segment1 != segment2
         d += 1
     end
     # Different case manager means an extra distance of 1.
@@ -296,16 +308,47 @@ function distance(s1::State, s2::State)
     return factord + admind
 end
 
-function Base.show(io::IO, portfolio::Portfolio)
+function Base.show(io::IO, claim::Claim)
+    for event in events(claim)
+        println(io, event)
+        println()
+    end
+end
+
+function Base.show(io::IO, event::Event)
+    if typeof(change(event)) == Segment
+        print( io
+             , date(event), " (segment change):"
+             , change(event)
+             )
+    elseif typeof(change(event)) == Service
+        print( io
+             , date(event), " (service request approved/denied):", "\n"
+             , "  ", change(event)
+             )
+    elseif typeof(change(event)) <: Integer
+        print( io
+             , date(event), " (assessment change):", "\n"
+             , "  ", "NIDS: ", change(event)
+             )
+    end
+end
+
+function Base.show(io::IO, segment::Segment)
     print( io, "\n"
-         , "  | Team: ", team(portfolio), "\n"
-         , "  | Branch: ", branch(portfolio), "\n"
-         , "  | Division: ", division(portfolio)
+         , "  | Division: ", division(segment), "\n"
+         , "  | Branch: ", branch(segment), "\n"
+         , "  | Team: ", team(segment), "\n"
+         , "  | Manager: ", manager(segment)
          )
 end
 
 function Base.show(io::IO, service::Service)
-    print(io, "<", service.label, ">", " @ ", @sprintf "\$%.2f" service.cost)
+    print( io, "<", label(service), ">"
+         , " @ ", @sprintf "\$%.2f" cost(service)
+         , " + ", labour(service), " hours FTE equivalent."
+         , approved(service) ? " Approved." : " Denied."
+         )
 end
 
 function Base.show(io::IO, adm::AdminState)
@@ -314,9 +357,7 @@ function Base.show(io::IO, adm::AdminState)
     print( io
          , "  Assessment: ", adm.assessment
          , "\n"
-         , "  Portfolio: ", adm.portfolio
-         , "\n"
-         , "  Case manager: ", adm.manager
+         , "  Segment: ", adm.segment
          , "\n"
          , "  Services:"
          , "\n"
@@ -358,7 +399,7 @@ end
 function lift_from_data( states # As list of list of service label strings.
                        , costs  # Dictionary of service labels => Float64.
                        , probabilities # Dictionary of state => probabilities.
-                       , portfolios # List of Team, Branch, Division _tuples_.
+                       , segments # List of Team, Branch, Division _tuples_.
                        , managers = nothing # List of managers [String]
                        )
     # First lift the services into the Service type via the `costs` dictionary.
@@ -370,20 +411,20 @@ function lift_from_data( states # As list of list of service label strings.
     # Then lift those into the `Service` type.
     services_list_of_lists = map.(s->Service(s...), label_cost_pairs)
     n = length(services_list_of_lists)
-    # Lift the portfolio tuples into the `Portfolio` type.
-    portfolios = map(t->Portfolio(t...), portfolios)
+    # Lift the segment tuples into the `Segment` type.
+    segments = map(t->Segment(t...), segments)
     # Make up a list of managers if nothing provided.
     if isnothing(managers)
         managers = [ "Alex", "Blake", "Charlie", "Dee", "Evelyn" ]
     end
-    # Make states of `services_list_of_lists` and random portfolio and managers.
+    # Make states of `services_list_of_lists` and random segment and managers.
     states = state.( services_list_of_lists
-                   , rand(portfolios, n)
+                   , rand(segments, n)
                    , rand(managers, n) )
     # Finally, make a new State => probabilities dictionary.
     probabilities = Dict(s=>probabilities[σ(s)] for s in states)
     # Deliver.
-    return states, services, probabilities, portfolios, managers
+    return states, services, probabilities, segments, managers
 end
 
 end # Module States.
