@@ -2,7 +2,7 @@ module Display
 
 using GraphMakie, Graphs, GLMakie, Dates
 
-using ..Gensimo: State, state, cost
+using ..Gensimo: StateOld, stateOld, cost
 
 export baseplot, gplot, costseriesplot
 
@@ -27,8 +27,8 @@ function gplot(g, labels=nothing) # Basic graph plotting with nice defaults.
     # Pairs of labels: list of tuples of (nohover, hover) labels.
     if typeof(labels) == Vector{Tuple{String, String}}
         # Sub-function to pass to the event handler.
-        function action(state, id, event, axis)
-            if state
+        function action(stateOld, id, event, axis)
+            if stateOld
                 p.nlabels[][id] = labels[id][2]
             else
                 p.nlabels[][id] = labels[id][1]

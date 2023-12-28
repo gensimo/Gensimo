@@ -24,126 +24,41 @@ State
 module States
 
 
-export State, state, distance
-export Service, Segment, Event, Claim
-export Factors, fromvector
+export StateOld, stateOld, distance
+export fromvector
 export lift_from_data
 export phy, ϕ, psi, ψ, adm, α, ser, σ
 export cost, costs
 
-using StaticArrays, Dates, Printf
+using ..Gensimo
 
-struct Factors <: FieldVector{12, Float64}
-    # Primary --- Big 6 complexities.
-    physical_health::Float64
-    psychological_health::Float64
-    persistent_pain::Float64
-    service_environment::Float64
-    accident_response::Float64
-    recovery_expectations::Float64
-    # Secondary --- Supplementary complexities.
-    prior_health::Float64 # Docs suggest this is a _list_ of pre-conditions.
-    prior_finance::Float64
-    fault::Float64 # Could be boolean.
-    support_optimism::Float64
-    sollicitor_engagement::Float64 # Could be boolean.
-    satisfaction::Float64 # Satisfaction with the scheme.
-end
-
-# Black magic making, e.g. added Factors be of Factor type again.
-StaticArrays.similar_type(::Type{Factors}, ::Type{Float64}, s::Size{(12,)}) =
-Factors
-
-function tovector(fs::Factors)
-    return [ fs.physical_health
-           , fs.psychological_health
-           , fs.persistent_pain
-           , fs.service_environment
-           , fs.accident_response
-           , fs.recovery_expectations
-           , fs.prior_health
-           , fs.prior_finance
-           , fs.fault
-           , fs.support_optimism
-           , fs.sollicitor_engagement
-           , fs.satisfaction ]
-end
-
-struct Service
-    label::String # Description of the service.
-    cost::Float64 # Monetary cost of the service in e.g. AUD.
-    labour::Integer # FTE cost of the service in person-hours
-    approved::Bool # Whether the service request is approved or denied.
-end
-
-label(s::Service) = s.label
-cost(s::Service) = s.cost
-labour(s::Service) = s.labour
-approved(s::Service) = s.approved
-
-struct Segment
-    division::String
-    branch::String
-    team::String
-    manager::String
-end
-
-division(p::Segment) = p.division
-branch(p::Segment) = p.branch
-team(p::Segment) = p.team
-manager(p::Segment) = p.manager
-
-struct Event
-    date::Date # When did the change to the claim occur?
-    change::Union{ Integer # The assessment, e.g. NIDS.
-                 , Segment
-                 , Service }
-end
-
-date(e::Event) = e.date
-change(e::Event) = e.change
-Base.isless(e1::Event, e2::Event) = date(e1) < date(e2)
-
-struct Claim
-    events::Vector{Event}
-end
-
-Claim() = Claim(Vector{Event}())
-"""Return a new `Claim` with `Event` added."""
-Base.:(+)(c::Claim, e::Event) = Claim([c.events..., e])
-
-events(c::Claim) = c.events
-services(c::Claim) = [ change(event) for event in sort(events(c))
-                       if typeof(change(event)) == Service ]
-
-
-struct AdminState
+struct AdminStateOld
     assessment::Integer        # E.g. NIDS score ∈ [0, 6].
-    segment::Segment       # (Team, Branch, Division).
+    segment::Segment           # (Team, Branch, Division).
     manager::String            # Team or case manager.
     services::Vector{Service}  # Simplifyingly assumes one claim.
 end
 
-AdminState(pf, mn, sv) = AdminState(-1, pf, mn, sv)
+AdminStateOld(pf, mn, sv) = AdminStateOld(-1, pf, mn, sv)
 
-struct State
-    factors::Factors
-    administrative::AdminState
+struct StateOld
+    state::State
+    administrative::AdminStateOld
 end
 
-function fromvector!(state::State, factors::Vector{Float64})
-    state.factors = Factors(factors...)
+function fromvector!(stateOld::StateOld, vector::Vector{Float64})
+    stateOld.state = State(vector...)
 end
 
-function ϕ(s::State)
-    return s.factors.physical_health
+function ϕ(s::StateOld)
+    return s.state.physical_health
 end
 
-function ψ(s::State)
-    return s.factors.psychological_health
+function ψ(s::StateOld)
+    return s.state.psychological_health
 end
 
-function α(s::State, services_only=true)
+function α(s::StateOld, services_only=true)
     if services_only
         return s.administrative.services
     else
@@ -154,20 +69,20 @@ function α(s::State, services_only=true)
     end
 end
 
-function σ(s::State)
+function σ(s::StateOld)
     return map(service->service.label, s.administrative.services)
 end
 
-function costs(state::State)
-    if isempty(α(state))
+function costs(stateOld::StateOld)
+    if isempty(α(stateOld))
         return [0]
     else
-        return map(service->service.cost, α(state))
+        return map(service->service.cost, α(stateOld))
     end
 end
 
-function cost(state::State)
-    return sum(costs(state))
+function cost(stateOld::StateOld)
+    return sum(costs(stateOld))
 end
 
 # ASCII aliases.
@@ -177,8 +92,8 @@ adm = α
 ser = σ
 
 """Universal (copy) constructor."""
-function state( state = nothing
-              ; factors = nothing
+function stateOld( stateOld = nothing
+              ; state = nothing
               , assessment = nothing
               , segment = nothing
               , manager = nothing
@@ -186,15 +101,15 @@ function state( state = nothing
               , ϕ = nothing
               , ψ = nothing
               )
-    # If `state` provided, harvest fields for default values.
-    if !isnothing(state)
-        factors = state.factors
-        # phi = phy(state)
-        # psi = psy(state)
-        as, pf, mn, sv = adm(state, false)
+    # If `stateOld` provided, harvest fields for default values.
+    if !isnothing(stateOld)
+        state = stateOld.state
+        # phi = phy(stateOld)
+        # psi = psy(stateOld)
+        as, pf, mn, sv = adm(stateOld, false)
     # If not, provide some defaults.
     else
-        fs = Factors(ones(Float64, 12)...)
+        fs = State(ones(Float64, 12)...)
         # phi = 100
         # psi = 100
         as = -1
@@ -203,13 +118,13 @@ function state( state = nothing
         sv = Vector{String}()
     end
     # Then set or change any fields that are provided.
-    if !isnothing(factors)
-        if typeof(factors) == Factors
-            fs = factors
-        elseif typeof(factors) == Vector{Float64}
-            fs = Factors(factors...)
+    if !isnothing(state)
+        if typeof(state) == State
+            fs = state
+        elseif typeof(state) == Vector{Float64}
+            fs = State(state...)
         else
-            error("Factors wrong type (use type Factors or Vector{Float64}).")
+            error("State wrong type (use type State or Vector{Float64}).")
         end
     end
     if !isnothing(assessment)
@@ -225,25 +140,25 @@ function state( state = nothing
         sv = services
     end
     if !isnothing(ϕ)
-        fs = Factors(ϕ, fs[2:12]...)
+        fs = State(ϕ, fs[2:12]...)
     end
     if !isnothing(ψ)
-        fs = Factors(fs[1], ψ, fs[3:12]...)
+        fs = State(fs[1], ψ, fs[3:12]...)
     end
-    # Finally, deliver the state struct.
-    return State( fs
-                , AdminState(as, sm, mn, sv) )
+    # Finally, deliver the stateOld struct.
+    return StateOld( fs
+                , AdminStateOld(as, sm, mn, sv) )
 end
 
-function state(services::Vector{Service})
-    return state(services=services)
+function stateOld(services::Vector{Service})
+    return stateOld(services=services)
 end
 
-function state(services, segment, manager::String)
-    return state(services=services, segment=segment, manager=manager)
+function stateOld(services, segment, manager::String)
+    return stateOld(services=services, segment=segment, manager=manager)
 end
 
-function Base.:(==)(c1::AdminState, c2::AdminState)
+function Base.:(==)(c1::AdminStateOld, c2::AdminStateOld)
     if distance(c1, c2) == 0
         return true
     else
@@ -251,7 +166,7 @@ function Base.:(==)(c1::AdminState, c2::AdminState)
     end
 end
 
-function Base.:(==)(s1::State, s2::State)
+function Base.:(==)(s1::StateOld, s2::StateOld)
     if distance(s1, s2) == 0
         return true
     else
@@ -259,8 +174,8 @@ function Base.:(==)(s1::State, s2::State)
     end
 end
 
-"""Return 'intervention' distance between administrative states (claims)."""
-function distance(c1::AdminState, c2::AdminState)
+"""Return 'intervention' distance between administrative stateOlds (claims)."""
+function distance(c1::AdminStateOld, c2::AdminStateOld)
     # Start with nothing.
     d=0
 
@@ -293,14 +208,14 @@ function distance(c1::AdminState, c2::AdminState)
     return d
 end
 
-"""Return 'intervention' distance between overall states."""
-function distance(s1::State, s2::State)
+"""Return 'intervention' distance between overall stateOlds."""
+function distance(s1::StateOld, s2::StateOld)
     # Abbreviate deeply nestled fields.
-    fs1 = s1.factors
-    fs2 = s2.factors
+    fs1 = s1.state
+    fs2 = s2.state
     α1 = s1.administrative
     α2 = s2.administrative
-    # Compute Euclidean distance between factors vectors.
+    # Compute Euclidean distance between state vectors.
     factord = (fs1 - fs2).^2 |> sum |> sqrt
     # Compute administrative distance.
     admind = distance(α1, α2)
@@ -308,85 +223,11 @@ function distance(s1::State, s2::State)
     return factord + admind
 end
 
-function Base.show(io::IO, claim::Claim)
-    for event in events(claim)
-        println(io, event)
-        println()
-    end
-end
-
-function Base.show(io::IO, event::Event)
-    if typeof(change(event)) == Segment
-        print( io
-             , date(event), " (segment change):"
-             , change(event)
-             )
-    elseif typeof(change(event)) == Service
-        print( io
-             , date(event), " (service request approved/denied):", "\n"
-             , "  ", change(event)
-             )
-    elseif typeof(change(event)) <: Integer
-        print( io
-             , date(event), " (assessment change):", "\n"
-             , "  ", "NIDS: ", change(event)
-             )
-    end
-end
-
-function Base.show(io::IO, segment::Segment)
+function Base.show(io::IO, s::StateOld)
     print( io, "\n"
-         , "  | Division: ", division(segment), "\n"
-         , "  | Branch: ", branch(segment), "\n"
-         , "  | Team: ", team(segment), "\n"
-         , "  | Manager: ", manager(segment)
-         )
-end
-
-function Base.show(io::IO, service::Service)
-    print( io, "<", label(service), ">"
-         , " @ ", @sprintf "\$%.2f" cost(service)
-         , " + ", labour(service), " hours FTE equivalent."
-         , approved(service) ? " Approved." : " Denied."
-         )
-end
-
-function Base.show(io::IO, adm::AdminState)
-    services = join([ string( "  | ", service, "\n")
-                      for service ∈ adm.services ])
-    print( io
-         , "  Assessment: ", adm.assessment
-         , "\n"
-         , "  Segment: ", adm.segment
-         , "\n"
-         , "  Services:"
-         , "\n"
-         , services
-         )
-end
-
-function Base.show(io::IO, fs::Factors)
-    print( io
-         , "  Physical health: ", "\t ", fs.physical_health, "\n"
-         , "  Psychological health: ", " ", fs.psychological_health, "\n"
-         , "  Persistent pain: ", "\t ", fs.persistent_pain, "\n"
-         , "  Service environment: ", "\t ", fs.service_environment, "\n"
-         , "  Accident response: ", "\t ", fs.accident_response, "\n"
-         , "  Recovery expectations: ", fs.recovery_expectations, "\n"
-         , "  Prior health: ", "\t ", fs.prior_health, "\n"
-         , "  Prior finance: ", "\t ", fs.prior_finance, "\n"
-         , "  Fault: ", "\t\t ", fs.fault, "\n"
-         , "  Support and optimism: ", " ", fs.support_optimism, "\n"
-         , "  Sollicitor engagement: ", fs.sollicitor_engagement, "\n"
-         , "  Satisfaction: ", "\t ", fs.satisfaction
-         )
-end
-
-function Base.show(io::IO, s::State)
-    print( io, "\n"
-         , "Factors\n"
+         , "State\n"
          , "-------\n"
-         , s.factors
+         , s.state
          , "\n\n"
          , "Administrative layer\n"
          , "--------------------\n"
@@ -396,18 +237,18 @@ end
 
 
 
-function lift_from_data( states # As list of list of service label strings.
+function lift_from_data( stateOlds # As list of list of service label strings.
                        , costs  # Dictionary of service labels => Float64.
-                       , probabilities # Dictionary of state => probabilities.
+                       , probabilities # Dictionary of stateOld => probabilities.
                        , segments # List of Team, Branch, Division _tuples_.
                        , managers = nothing # List of managers [String]
                        )
     # First lift the services into the Service type via the `costs` dictionary.
     services = Service.(keys(costs), values(costs))
-    # Then turn states into State types.
-    # First turn the `states` list-of-lists into a `Services` list-of-lists.
-    # Make label-cost pairs from the `states` list of list of labels.
-    label_cost_pairs = map.(s->(s, costs[s]), states)
+    # Then turn stateOlds into StateOld types.
+    # First turn the `stateOlds` list-of-lists into a `Services` list-of-lists.
+    # Make label-cost pairs from the `stateOlds` list of list of labels.
+    label_cost_pairs = map.(s->(s, costs[s]), stateOlds)
     # Then lift those into the `Service` type.
     services_list_of_lists = map.(s->Service(s...), label_cost_pairs)
     n = length(services_list_of_lists)
@@ -417,14 +258,14 @@ function lift_from_data( states # As list of list of service label strings.
     if isnothing(managers)
         managers = [ "Alex", "Blake", "Charlie", "Dee", "Evelyn" ]
     end
-    # Make states of `services_list_of_lists` and random segment and managers.
-    states = state.( services_list_of_lists
+    # Make stateOlds of `services_list_of_lists` and random segment and managers.
+    stateOlds = stateOld.( services_list_of_lists
                    , rand(segments, n)
                    , rand(managers, n) )
-    # Finally, make a new State => probabilities dictionary.
-    probabilities = Dict(s=>probabilities[σ(s)] for s in states)
+    # Finally, make a new StateOld => probabilities dictionary.
+    probabilities = Dict(s=>probabilities[σ(s)] for s in stateOlds)
     # Deliver.
-    return states, services, probabilities, segments, managers
+    return stateOlds, services, probabilities, segments, managers
 end
 
 end # Module States.
