@@ -1,6 +1,14 @@
 using Agents
 using StaticArrays, Dates, Printf
 
+function heaviside(x::Real)
+    if x>=0
+        return 1.0
+    else
+        return 0.0
+    end
+end
+
 struct State <: FieldVector{12, Float64}
     # Primary --- Big 6 complexities.
     physical_health::Float64
@@ -22,25 +30,18 @@ end
 StaticArrays.similar_type(::Type{State}, ::Type{Float64}, s::Size{(12,)}) =
 State
 
-function tovector(state::State)
-    return [ state.physical_health
-           , state.psychological_health
-           , state.persistent_pain
-           , state.service_environment
-           , state.accident_response
-           , state.recovery_expectations
-           , state.prior_health
-           , state.prior_finance
-           , state.fault
-           , state.support_optimism
-           , state.sollicitor_engagement
-           , state.satisfaction ]
+function big6(state::State)
+    return state[1:6]
+end
+
+function nids(state::State)
+    return heaviside.(big6(state) .- .5) |> sum |> Integer
 end
 
 struct Service
     label::String # Description of the service.
     cost::Float64 # Monetary cost of the service in e.g. AUD.
-    labour::Integer # FTE cost of the service in person-hours
+    labour::Integer # FTE cost of the service in person-hours.
     approved::Bool # Whether the service request is approved or denied.
 end
 
@@ -100,10 +101,14 @@ Personalia() = rand([ Personalia("Ozzy Driver", 66, 1)
 end
 
 
+
 function Base.show(io::IO, claim::Claim)
-    for event in events(claim)
-        println(io, event)
-        println()
+    if !isempty(claim.events)
+        for event in events(claim)
+            println(io, event)
+        end
+    else
+        print(io, "Empty claim.")
     end
 end
 

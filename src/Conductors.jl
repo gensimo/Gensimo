@@ -22,48 +22,46 @@ function events(from_date, to_date, lambda)
     return sort(events)
 end
 
-struct Case
-    stateOld::StateOld      # Initial stateOld of case.
-    dayzero::Date     # Date of entering the scheme, e.g. date of accident.
-    severity::Float64 # Multiplies the intensity of the request point process.
-end
+# struct Case
+    # stateOld::StateOld      # Initial stateOld of case.
+    # dayzero::Date     # Date of entering the scheme, e.g. date of accident.
+    # severity::Float64 # Multiplies the intensity of the request point process.
+# end
 
-Case() = Case( stateOld() # Empty stateOld.
-             , rand(Date(2020):Day(1):Date(2023)) # Random day zero.
-             , 1+rand(Exponential()) ) # Random severity.
+# Case() = Case( stateOld() # Empty stateOld.
+             # , rand(Date(2020):Day(1):Date(2023)) # Random day zero.
+             # , 1+rand(Exponential()) ) # Random severity.
 
-Case(segment, manager) = Case( stateOld( segment=segment
-                                      , manager=manager ) # Empty stateOld.
-                               , rand(Date(2020):Day(1):Date(2023)) # Day 0.
-                               , 1+rand(Exponential()) ) # Random severity.
+# Case(segment, manager) = Case( stateOld( segment=segment
+                                      # , manager=manager ) # Empty stateOld.
+                               # , rand(Date(2020):Day(1):Date(2023)) # Day 0.
+                               # , 1+rand(Exponential()) ) # Random severity.
 
-function case_events(case::Case, to_date::Date)
-    return events(case.dayzero, to_date, case.severity/Dates.days(Year(1)))
-end
+# function case_events(case::Case, to_date::Date)
+    # return events(case.dayzero, to_date, case.severity/Dates.days(Year(1)))
+# end
 
 struct Context
     # Necessary context --- these fields are needed by any simulation.
     services::Vector{Service} # List of `Service`s (label, cost).
-    segments::Vector{Segment} # List of `Segment`s (team, branch, div.).
-    managers::Vector{String} # List of case manager names.
+    segments::Vector{Segment} # List of `Segment`s (dvsn, brnch, tm, mngr).
     # Optional context --- these fields can be inferred or ignored.
-    stateOlds::Vector{StateOld} # List of allowed `StateOld`s (e.g. empirical).
-    probabilities::Dict{StateOld, AbstractArray} # StateOld transition probabilities.
+    states::Vector{Vector{String}} # List of allowed service lists ('states').
+    probabilities::Dict{Vector{String}, AbstractArray} # Trnstn prbs.
 end
 
 Context(services, segments, managers) = Context( services
-                                                 , segments
-                                                 , managers
-                                                 , Vector{StateOld}()
-                                                 , Dict{StateOld, AbstractArray}()
-                                                 )
+                                               , segments
+                                               , Vector{Vector{String}}()
+                                               , Dict{ Vector{Vector{String}}
+                                                     , AbstractArray}()
+                                               )
 
 mutable struct Conductor
-    context::Context          # Allowed `StateOld`s, `Service`s etc.
+    context::Context          # Allowed `Segments`s, `Service`s etc.
     epoch::Date               # Initial date.
     eschaton::Date            # Final date.
-    cases::Vector{Case}       # `Case`s (dayzero, severity).
-    histories::Dict           # Each `Case`'s history (`Date`=>`StateOld`).
+    clients::Vector{Client}   # The clients to simulate (states and claims).
 end
 
 
@@ -79,20 +77,20 @@ Create a Conductor object for use with deliberation ABMs.
 function Conductor( context::Context
                   , epoch::Date, eschaton::Date
                   , ncases=1 )
-    # Create n random `Case`s.
-    cases = [ Case(rand(context.segments)
-            , rand(context.managers))
-              for i in 1:ncases ]
-    # Prepare a history for each case with no stateOlds against the `Date`s yet.
-    histories = Dict( case=>OrderedDict( vcat( case.dayzero
-                                       , case_events(case, eschaton) )
-                                         .=> [case.stateOld] )
-                      for case in cases )
-    # Instantiate and deliver the object.
-    return Conductor( context
-                    , epoch, eschaton
-                    , cases
-                    , histories )
+    # # Create n random `Case`s.
+    # cases = [ Case(rand(context.segments)
+            # , rand(context.managers))
+              # for i in 1:ncases ]
+    # # Prepare a history for each case with no stateOlds against the `Date`s yet.
+    # histories = Dict( case=>OrderedDict( vcat( case.dayzero
+                                       # , case_events(case, eschaton) )
+                                         # .=> [case.stateOld] )
+                      # for case in cases )
+    # # Instantiate and deliver the object.
+    # return Conductor( context
+                    # , epoch, eschaton
+                    # , cases
+                    # , histories )
 end
 
 function extract( conductor::Conductor

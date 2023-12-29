@@ -2,16 +2,15 @@ module Gensimo
 
 # Include and export essentials from clients.jl.
 include("clients.jl")
-export Service, Segment, Event, Claim
-export State, state
+export Service, Segment, Event, Claim, State, Client
 
-# Import and re-export essentials from States.
-include("States.jl")
-using .States
-export StateOld, stateOld, tovector, fromvector
-export distance, lift_from_data
-export cost, costs
-export phy, ϕ, psy, ψ, adm, α, ser, σ
+# # Import and re-export essentials from States.
+# include("States.jl")
+# using .States
+# export StateOld, stateOld, tovector, fromvector
+# export distance, lift_from_data
+# export cost, costs
+# export phy, ϕ, psy, ψ, adm, α, ser, σ
 
 # Import and re-export essentials from Display.
 include("Display.jl")
