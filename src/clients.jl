@@ -96,11 +96,38 @@ Personalia() = rand([ Personalia("Ozzy Driver", 66, 1)
 
 @agent Client ContinuousAgent{2} begin
     personalia::Personalia
-    states::Vector{State}
+    states::Dict{Date, State}
     claim::Claim
 end
 
+function state(client::Client)
+    date = sort(collect(keys(client.states)))[end]
+    return client.states[date]
+end
 
+function Client(id, personalia, states, claim)
+    date = sort(collect(keys(states)))[end]
+    state = states[date]
+    return Client( id # Agent ID.
+                 , (state[1], state[2]) # 2D (ϕ, ψ) 'location' vector.
+                 , (0.0, 0.0) # Dummy 'velocity' vector.
+                 , personalia
+                 , states
+                 , claim )
+end
+
+function ClientMaker(id=0)
+    id += 1
+    return (personalia, states, claim) -> Client(id, personalia, states, claim)
+end
+
+let
+    start_id = 0
+    global function Client(personalia, states, claim)
+        start_id += 1
+        return Client(start_id, personalia, states, claim)
+    end
+end
 
 function Base.show(io::IO, claim::Claim)
     if !isempty(claim.events)
