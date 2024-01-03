@@ -117,8 +117,11 @@ function Client(id, personalia, states, claim)
 end
 
 function ClientMaker(id=0)
-    id += 1
-    return (personalia, states, claim) -> Client(id, personalia, states, claim)
+    id -= 1 # So as to actually start at the current value of `id`.
+    function C(personalia, states, claim)
+        id += 1
+        return Client(id, personalia, states, claim)
+    end
 end
 
 let
@@ -128,6 +131,23 @@ let
         return Client(start_id, personalia, states, claim)
     end
 end
+
+let
+    start_id = 0
+    global function Client(personalia, states, claim; id=nothing)
+        isnothing(id) ? start_id += 1 : start_id = id
+        return Client(start_id, personalia, states, claim)
+    end
+end
+
+function resetClient()
+    Client( Personalia()
+          , Dict(Date(2020)=>State(rand(12)))
+          , Claim()
+          ; id=0 )
+    return nothing
+end
+
 
 function Base.show(io::IO, claim::Claim)
     if !isempty(claim.events)

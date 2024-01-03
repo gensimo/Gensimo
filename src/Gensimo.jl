@@ -2,7 +2,8 @@ module Gensimo
 
 # Include and export essentials from clients.jl.
 include("clients.jl")
-export Service, Segment, Event, Claim, State, Client
+export Service, Segment, Event, Claim, State
+export Client, ClientMaker, resetClient
 export Personalia
 
 # # Import and re-export essentials from States.
