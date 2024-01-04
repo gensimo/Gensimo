@@ -94,15 +94,33 @@ end
 Personalia() = rand([ Personalia("Ozzy Driver", 66, 1)
                     , Personalia("Sydney Cooter", 19, 0) ])
 
+name(p::Personalia) = p.name
+age(p::Personalia) = p.age
+sex(p::Personalia) = p.sex
+
 @agent Client ContinuousAgent{2} begin
     personalia::Personalia
     states::Dict{Date, State}
     claim::Claim
 end
 
-function state(client::Client)
-    date = sort(collect(keys(client.states)))[end]
-    return client.states[date]
+dates(client::Client) = client.states |> keys |> collect |> sort
+states(client::Client) = [ client.states[date] for date ∈ dates(client) ]
+personalia(client::Client) = client.personalia
+claim(client::Client) = client.claim
+date(client::Client) = dates(client)[end]
+state(client::Client) = client.states[date(client)]
+dayzero(client::Client) = dates(client)[1]
+
+function Client(id, pos, personalia, states, claim)
+    date = sort(collect(keys(states)))[end]
+    state = states[date]
+    return Client( id # Agent ID.
+                 , (state[1], state[2]) # 2D (ϕ, ψ) 'location' vector.
+                 , (0.0, 0.0) # Dummy 'velocity' vector.
+                 , personalia
+                 , states
+                 , claim )
 end
 
 function Client(id, personalia, states, claim)
@@ -126,14 +144,6 @@ end
 
 let
     start_id = 0
-    global function Client(personalia, states, claim)
-        start_id += 1
-        return Client(start_id, personalia, states, claim)
-    end
-end
-
-let
-    start_id = 0
     global function Client(personalia, states, claim; id=nothing)
         isnothing(id) ? start_id += 1 : start_id = id
         return Client(start_id, personalia, states, claim)
@@ -148,6 +158,25 @@ function resetClient()
     return nothing
 end
 
+function Base.show(io::IO, client::Client)
+    println( io
+           , "Client ID: ", client.id, "\n"
+           , personalia(client)
+           , "Status (", date(client), "):\n"
+           , "  | ϕ = ", state(client)[1], "\n"
+           , "  | ψ = ", state(client)[2], "\n"
+           , "Claim:", "\n"
+           , claim(client)
+           )
+end
+
+function Base.show(io::IO, personalia::Personalia)
+    println( io
+           , "  | ", name(personalia), ". "
+           , age(personalia), " year-old "
+           , sex(personalia) ? "male" : "female", "."
+           )
+end
 
 function Base.show(io::IO, claim::Claim)
     if !isempty(claim.events)
@@ -155,31 +184,31 @@ function Base.show(io::IO, claim::Claim)
             println(io, event)
         end
     else
-        print(io, "Empty claim.")
+        print(io, "  | Empty claim.")
     end
 end
 
 function Base.show(io::IO, event::Event)
     if typeof(change(event)) == Segment
         print( io
-             , date(event), " (segment change):"
+             , "  ", date(event), " > segmentation", "\n"
              , change(event)
              )
     elseif typeof(change(event)) == Service
         print( io
-             , date(event), " (service request approved/denied):", "\n"
-             , "  ", change(event)
+             , "  ", date(event), " > service request", "\n"
+             , "  | ", change(event)
              )
     elseif typeof(change(event)) <: Integer
         print( io
-             , date(event), " (assessment change):", "\n"
-             , "  ", "NIDS: ", change(event)
+             , "  ", date(event), " > assessment", "\n"
+             , "  | ", "NIDS: ", change(event)
              )
     end
 end
 
 function Base.show(io::IO, segment::Segment)
-    print( io, "\n"
+    print( io
          , "  | Division: ", division(segment), "\n"
          , "  | Branch: ", branch(segment), "\n"
          , "  | Team: ", team(segment), "\n"
@@ -196,7 +225,7 @@ function Base.show(io::IO, service::Service)
 end
 
 function Base.show(io::IO, state::State)
-    print( io
+    print( io, "\n"
          , "  Physical health: ", "\t ", state.physical_health, "\n"
          , "  Psychological health: ", " ", state.psychological_health, "\n"
          , "  Persistent pain: ", "\t ", state.persistent_pain, "\n"
