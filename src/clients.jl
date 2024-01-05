@@ -87,66 +87,114 @@ services(c::Claim) = [ change(event) for event in sort(events(c))
 
 struct Personalia
     name::String
-    age::Integer
+    age::Int64
     sex::Bool
 end
 
-Personalia() = rand([ Personalia("Ozzy Driver", 66, 1)
-                    , Personalia("Sydney Cooter", 19, 0) ])
+firstnamesM = [ "David", "John", "Peter", "Michael", "Paul", "Andrew", "Mark"
+              , "Robert", "Ian", "Chris", "Steven", "James", "Tony", "Greg"
+              , "Benjamin", "Richard", "Tim", "Jason" , "Stephen", "Daniel"
+              , "Scott", "Craig" , "Matthew", "William", "Simon" , "Anthony"
+              , "Thomas", "Brian", "Gary", "Adam", "Kim" , "Geoff", "Alan"
+              , "Matt", "Wayne", "Shane", "Nick" , "Darren", "Bruce", "Kevin"
+              , "Luke" , "Graham", "Sam", "Brett", "Terry" , "Phil", "Neil"
+              , "Colin", "Stuart" , "Ken", "Jim", "Bob", "Graeme", "Alex"
+              , "Brad", "Barry", "Martin", "Trevor", "Kerry" , "Ross", "Glenn"
+              , "Nathan", "George", "Dean", "Ray" ]
 
+firstnamesF = [ "Chris", "Julie", "Karen", "Michelle", "Helen", "Sue"
+              , "Elizabeth", "Lisa", "Sarah", "Kate", "Kim", "Rebecca", "Jane"
+              , "Jenny", "Susan", "Wendy", "Amanda", "Anne", "Christine"
+              , "Sharon", "Jennifer", "Fiona", "Sam", "Robyn", "Margaret"
+              , "Emma", "Nicole", "Melissa", "Linda", "Catherine", "Jo", "Alex"
+              , "Louise", "Anna", "Kerry", "Kylie", "Jessica", "Debbie", "Mary"
+              , "Angela" ]
+
+lastnames = [ "Smith", "Jones", "Williams", "Brown", "Wilson", "Taylor"
+            , "Anderson", "Johnson", "White", "Thompson", "Lee", "Martin"
+            , "Thomas", "Walker", "Kelly", "Young", "Harris", "King", "Ryan"
+            , "Roberts", "Hall", "Evans", "Davis", "Wright", "Baker", "Campbell"
+            , "Edwards", "Clark", "Robinson", "McDonald", "Hill", "Scott"
+            , "Clarke", "Mitchell", "Stewart", "Moore", "Turner", "Miller"
+            , "Green", "Watson", "Bell", "Wood", "Cooper", "Murphy", "Jackson"
+            , "James", "Lewis", "Allen", "Bennett", "Robertson", "Collins"
+            , "Cook", "Murray", "Ward", "Phillips", "O'Brien", "Nguyen"
+            , "Davies", "Hughes", "Morris", "Adams", "Johnston", "Parker"
+            , "Ross", "Gray", "Graham", "Russell", "Morgan", "Reid", "Kennedy"
+            , "Marshall", "Singh", "Cox", "Harrison", "Simpson", "Richardson"
+            , "Richards", "Carter", "Rogers", "Walsh", "Thomson", "Bailey"
+            , "Matthews", "Cameron", "Webb", "Chapman", "Stevens", "Ellis"
+            , "McKenzie", "Grant", "Shaw", "Hunt", "Harvey", "Butler", "Mills"
+            , "Price", "Pearce", "Barnes", "Henderson", "Armstrong" ]
+
+function name(sex)
+    if sex
+        return string(rand(firstnamesM), " ", rand(lastnames))
+    else
+        return string(rand(firstnamesF), " ", rand(lastnames))
+    end
+end
+
+Personalia() = ( sex = rand(0:1) |> Bool
+               ; Personalia(name(sex), rand(0:100), sex) )
+
+# Accessors.
 name(p::Personalia) = p.name
 age(p::Personalia) = p.age
 sex(p::Personalia) = p.sex
 
 @agent Client ContinuousAgent{2} begin
     personalia::Personalia
-    states::Dict{Date, State}
+    history::Dict{Date, State}
     claim::Claim
 end
 
-dates(client::Client) = client.states |> keys |> collect |> sort
-states(client::Client) = [ client.states[date] for date ∈ dates(client) ]
+# Accessors.
 personalia(client::Client) = client.personalia
+history(client::Client) = client.history
 claim(client::Client) = client.claim
+# Assorted derivative accessors.
+dates(client::Client) = history(client) |> keys |> collect |> sort
+states(client::Client) = [ history(client)[date] for date ∈ dates(client) ]
 date(client::Client) = dates(client)[end]
-state(client::Client) = client.states[date(client)]
+state(client::Client) = history(client)[date(client)]
 dayzero(client::Client) = dates(client)[1]
 
-function Client(id, pos, personalia, states, claim)
-    date = sort(collect(keys(states)))[end]
-    state = states[date]
+function Client(id, pos, personalia, history, claim)
+    date = sort(collect(keys(history)))[end]
+    state = history[date]
     return Client( id # Agent ID.
                  , (state[1], state[2]) # 2D (ϕ, ψ) 'location' vector.
                  , (0.0, 0.0) # Dummy 'velocity' vector.
                  , personalia
-                 , states
+                 , history
                  , claim )
 end
 
-function Client(id, personalia, states, claim)
-    date = sort(collect(keys(states)))[end]
-    state = states[date]
+function Client(id, personalia, history, claim)
+    date = sort(collect(keys(history)))[end]
+    state = history[date]
     return Client( id # Agent ID.
                  , (state[1], state[2]) # 2D (ϕ, ψ) 'location' vector.
                  , (0.0, 0.0) # Dummy 'velocity' vector.
                  , personalia
-                 , states
+                 , history
                  , claim )
 end
 
 function ClientMaker(id=0)
     id -= 1 # So as to actually start at the current value of `id`.
-    function C(personalia, states, claim)
+    function C(personalia, history, claim)
         id += 1
-        return Client(id, personalia, states, claim)
+        return Client(id, personalia, history, claim)
     end
 end
 
 let
     start_id = 0
-    global function Client(personalia, states, claim; id=nothing)
+    global function Client(personalia, history, claim; id=nothing)
         isnothing(id) ? start_id += 1 : start_id = id
-        return Client(start_id, personalia, states, claim)
+        return Client(start_id, personalia, history, claim)
     end
 end
 

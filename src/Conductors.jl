@@ -22,25 +22,6 @@ function events(from_date, to_date, lambda)
     return sort(events)
 end
 
-# struct Case
-    # stateOld::StateOld      # Initial stateOld of case.
-    # dayzero::Date     # Date of entering the scheme, e.g. date of accident.
-    # severity::Float64 # Multiplies the intensity of the request point process.
-# end
-
-# Case() = Case( stateOld() # Empty stateOld.
-             # , rand(Date(2020):Day(1):Date(2023)) # Random day zero.
-             # , 1+rand(Exponential()) ) # Random severity.
-
-# Case(segment, manager) = Case( stateOld( segment=segment
-                                      # , manager=manager ) # Empty stateOld.
-                               # , rand(Date(2020):Day(1):Date(2023)) # Day 0.
-                               # , 1+rand(Exponential()) ) # Random severity.
-
-# function case_events(case::Case, to_date::Date)
-    # return events(case.dayzero, to_date, case.severity/Dates.days(Year(1)))
-# end
-
 struct Context
     # Necessary context --- these fields are needed by any simulation.
     services::Vector{Service} # List of `Service`s (label, cost).
@@ -64,33 +45,38 @@ mutable struct Conductor
     clients::Vector{Client}   # The clients to simulate (states and claims).
 end
 
+# Accessors.
+context(c::Conductor) = c.context
+epoch(c::Conductor) = c.epoch
+eschaton(c::Conductor) = c.eschaton
+clients(c::Conductor) = c.clients
 
-"""
-    Conductor( services, stateOlds
-             , epoch, eschaton
-             , ncases=1
-             , segments=nothing, managers=nothing
-             , probabilities=nothing )
-
-Create a Conductor object for use with deliberation ABMs.
-"""
 function Conductor( context::Context
                   , epoch::Date, eschaton::Date
-                  , ncases=1 )
-    # # Create n random `Case`s.
-    # cases = [ Case(rand(context.segments)
-            # , rand(context.managers))
-              # for i in 1:ncases ]
-    # # Prepare a history for each case with no stateOlds against the `Date`s yet.
-    # histories = Dict( case=>OrderedDict( vcat( case.dayzero
-                                       # , case_events(case, eschaton) )
-                                         # .=> [case.stateOld] )
-                      # for case in cases )
-    # # Instantiate and deliver the object.
-    # return Conductor( context
-                    # , epoch, eschaton
-                    # , cases
-                    # , histories )
+                  , nclients::Integer=1 )
+    # Create random clients, with epoch < `dayzero` < eschaton.
+    clients = [ Client( Personalia()
+                      , Dict(rand(epoch:Day(1):eschaton)=>State(rand(12)))
+                      , Claim() ) for i ∈ 1:nclients ]
+    # Instantiate and deliver the object.
+    return Conductor( context
+                    , epoch, eschaton
+                    , clients )
+end
+
+function Conductor( context::Context
+                  , eschaton::Date # End-date only --- initial date inferred.
+                  , clients::Vector{Client} )
+    # Collect and sort all `dayzero`es of the clients.
+    zerodays = [dayzero(client) for client ∈ clients] |> sort
+    # Start the simulation on the first zero day.
+    epoch = zerodays[1]
+    # End of simulation needs to be later than all zero days.
+    if zerodays[end] < eschaton
+        return Conductor(context, epoch, eschaton, clients)
+    else
+        error("At least one client has zero day at or after end of simulation.")
+    end
 end
 
 function extract( conductor::Conductor

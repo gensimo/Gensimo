@@ -5,6 +5,7 @@ include("clients.jl")
 export Service, Segment, Event, Claim, State
 export Client, ClientMaker, resetClient
 export Personalia
+export dayzero
 
 # # Import and re-export essentials from States.
 # include("States.jl")
