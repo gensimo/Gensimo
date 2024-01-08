@@ -35,8 +35,19 @@ function big6(state::State)
 end
 
 function nids(state::State)
-    return heaviside.(big6(state) .- .5) |> sum |> Integer
+    return heaviside.(.5 .- big6(state)) |> sum |> Integer
 end
+
+nids(client::Client) = client |> state |> nids
+
+function λ(state::State, mean=:arithmetic)
+    mean == :arithmetic && return big6(state) |> sum |> x->x/6
+    mean == :geometric && return big6(state) |> prod |> x->x^(1/6)
+    mean == :harmonic && return map(x->1/x, big6(state)) |> sum |> x->6/x
+end
+
+λ(client::Client, mean=:arithmetic) = λ(client |> state, mean)
+
 
 struct Service
     label::String # Description of the service.
@@ -198,7 +209,7 @@ let
     end
 end
 
-function resetClient()
+function reset_client()
     Client( Personalia()
           , Dict(Date(2020)=>State(rand(12)))
           , Claim()

@@ -1,11 +1,4 @@
-module Display
-
 using GraphMakie, Graphs, GLMakie, Dates
-
-# using ..Gensimo: StateOld, stateOld, cost
-using ..Gensimo: cost
-
-export baseplot, gplot, costseriesplot
 
 function baseplot(g) # Basic graph plotting with nice defaults.
     fig, ax, p = graphplot( g
@@ -184,6 +177,3 @@ function datesplot(dates::Vector{Date}, values, labels=nothing)
     # Deliver.
     return fig, ax, plt
 end
-
-
-end # Module.

@@ -2,29 +2,26 @@ module Gensimo
 
 # Include and export essentials from clients.jl.
 include("clients.jl")
-export Service, Segment, Event, Claim, State
-export Client, ClientMaker, resetClient
-export Personalia
-export dayzero
+export Claim, events, services
+export Client, reset_client, personalia, history, claim,
+       dates, date, states, state, dayzero, nids
+export Event, date, change
+export Personalia, name, age, sex
+export Segment, division, branch, team, manager
+export Service, label, cost, labour, approved
+export State,
+       big6, nids
+export name, heaviside
 
-# # Import and re-export essentials from States.
-# include("States.jl")
-# using .States
-# export StateOld, stateOld, tovector, fromvector
-# export distance, lift_from_data
-# export cost, costs
-# export phy, ϕ, psy, ψ, adm, α, ser, σ
+# Include and export essentials from display.jl.
+include("display.jl")
+export baseplot, gplot, datesplot
+       costseriesplot, costseriesplot_ensemble, costseriesplot_tiled
 
-# Import and re-export essentials from Display.
-include("Display.jl")
-using .Display
-export baseplot, gplot, costseriesplot
-
-# Import and re-export essentials from Conductor.
-include("Conductors.jl")
-using .Conductors
-export Conductor, Case, extract, case_events, events, Context
-export simulate!, simulate_mdp!, simulate_abm!
+# Include and export essentials from conductors.jl.
+include("conductors.jl")
+export Conductor, clients, context, epoch, eschaton
+export Context, services, segments, states, probabilities
 
 # Importing deliberation modules.
 include("DeliberationMDP.jl")

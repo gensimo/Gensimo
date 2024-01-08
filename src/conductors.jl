@@ -1,12 +1,10 @@
-module Conductors
-
 using Distributions, StatsBase, Dates
 using Agents
 using DataStructures: OrderedDict
 
-using ..Gensimo
+# using ..Gensimo
 
-export Conductor, Case, extract, case_events, events, Context
+# export Conductor, Case, extract, case_events, events, Context
 
 function events(from_date, to_date, lambda)
     # Get a list of the dates under consideration.
@@ -31,12 +29,16 @@ struct Context
     probabilities::Dict{Vector{String}, AbstractArray} # Trnstn prbs.
 end
 
-Context(services, segments, managers) = Context( services
-                                               , segments
-                                               , Vector{Vector{String}}()
-                                               , Dict{ Vector{Vector{String}}
-                                                     , AbstractArray}()
-                                               )
+Context(services, segments) = Context( services
+                                     , segments
+                                     , Vector{Vector{String}}()
+                                     , Dict{ Vector{Vector{String}}
+                                           , AbstractArray}() )
+
+services(context::Context) = context.services
+segments(context::Context) = context.segments
+states(context::Context) = context.states
+probabilities(context::Context) = context.probabilities
 
 mutable struct Conductor
     context::Context          # Allowed `Segments`s, `Service`s etc.
@@ -87,6 +89,3 @@ function extract( conductor::Conductor
                  , cost.(collect(values(conductor.histories[case]))) )
                  for case in conductor.cases )
 end
-
-
-end # Module Conductors.
