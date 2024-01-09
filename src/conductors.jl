@@ -1,10 +1,7 @@
-using Distributions, StatsBase, Dates
+using Distributions, StatsBase, Dates, Random
 using Agents
 using DataStructures: OrderedDict
 
-# using ..Gensimo
-
-# export Conductor, Case, extract, case_events, events, Context
 
 function events(from_date, to_date, lambda)
     # Get a list of the dates under consideration.
@@ -18,6 +15,46 @@ function events(from_date, to_date, lambda)
     events = sample(dates, nevents; replace=false)
     # Deliver as a sorted list.
     return sort(events)
+end
+
+function n( t # Number of days passed since day zero.
+          , λ # Initial hazard rate (mean #requests at day zero).
+          , β # Decay rate of exponential decline of λ.
+          , rng=nothing # Pseudo random number generator.
+          )
+    # If not provided, get the pseudo-randomness from device.
+    isnothing(rng) ? rng = RandomDevice() : rng
+    if t < 0
+        return 0 # Only non-negative times are considered.
+    else
+        λ′ = λ * exp(-β*t) # Hazard rate declines exponentially.
+        n = rand(rng, Poisson(λ′)) # Draw from current Poisson distribution.
+        # Deliver.
+        return n
+    end
+end
+
+function nrequests( client::Client # The client, including health state(s).
+                  , date::Date # For which the number of requests is requested.
+                  , β=.01 # Decay rate, defaults to ~37% in 100 days.
+                  , rng=nothing # Pseudo random number generator.
+                  )
+    # If not provided, get the pseudo-randomness from device.
+    isnothing(rng) ? rng = RandomDevice() : rng
+    # Deliver.
+    return n(τ(client, date), λ(client), β)
+end
+
+function request_cost( client::Client # The client, including health state(s).
+                     , date::Date # At which request is placed.
+                     , β=.01 # Decay rate, defaults to ~37% in 100 days.
+                     , basecost=10 # Number of dollars.
+                     , rng=nothing # Pseudo random number generator.
+                     )
+    # If not provided, get the pseudo-randomness from device.
+    isnothing(rng) ? rng = RandomDevice() : rng
+    # Deliver.
+    return basecost * n(τ(client, date), λ(client), β)
 end
 
 struct Context

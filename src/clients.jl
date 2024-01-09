@@ -38,21 +38,16 @@ function nids(state::State)
     return heaviside.(.5 .- big6(state)) |> sum |> Integer
 end
 
-nids(client::Client) = client |> state |> nids
-
-function λ(state::State, mean=:arithmetic)
-    mean == :arithmetic && return big6(state) |> sum |> x->x/6
-    mean == :geometric && return big6(state) |> prod |> x->x^(1/6)
-    mean == :harmonic && return map(x->1/x, big6(state)) |> sum |> x->6/x
+function λ(state::State, mean=:harmonic)
+    mean == :arithmetic && return big6(state) |> sum |> x->1/(x/6)
+    mean == :geometric && return big6(state) |> prod |> x->1/(x^(1/6))
+    mean == :harmonic && return map(x->1/x, big6(state)) |> sum |> x->1/(6/x)
 end
-
-λ(client::Client, mean=:arithmetic) = λ(client |> state, mean)
-
 
 struct Service
     label::String # Description of the service.
     cost::Float64 # Monetary cost of the service in e.g. AUD.
-    labour::Integer # FTE cost of the service in person-hours.
+    labour::Integer # Labour cost of the service in person-hours.
     approved::Bool # Whether the service request is approved or denied.
 end
 
@@ -170,6 +165,12 @@ states(client::Client) = [ history(client)[date] for date ∈ dates(client) ]
 date(client::Client) = dates(client)[end]
 state(client::Client) = history(client)[date(client)]
 dayzero(client::Client) = dates(client)[1]
+# Other utility functions.
+τ(client::Client, date::Date) = date - dayzero(client) |> Dates.value
+τ(date::Date) = client -> τ(client, date)
+nids(client::Client) = client |> state |> nids
+λ(client::Client, mean=:harmonic) = λ(client |> state, mean)
+λ(mean=:harmonic) = client -> λ(client |> state, mean)
 
 function Client(id, pos, personalia, history, claim)
     date = sort(collect(keys(history)))[end]
