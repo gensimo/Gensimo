@@ -44,6 +44,8 @@ function λ(state::State, mean=:harmonic)
     mean == :harmonic && return map(x->1/x, big6(state)) |> sum |> x->1/(6/x)
 end
 
+λ(mean=:harmonic) = state -> λ(state, mean)
+
 struct Service
     label::String # Description of the service.
     cost::Float64 # Monetary cost of the service in e.g. AUD.
