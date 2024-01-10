@@ -48,7 +48,7 @@ end
 function request_cost( client::Client # The client, including health state(s).
                      , date::Date # At which request is placed.
                      , β=.01 # Decay rate, defaults to ~37% in 100 days.
-                     , basecost=10 # Number of dollars.
+                     , basecost=10.0 # Number of dollars.
                      , rng=nothing # Pseudo random number generator.
                      )
     # If not provided, get the pseudo-randomness from device.

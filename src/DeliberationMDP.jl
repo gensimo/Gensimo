@@ -5,7 +5,7 @@ using QuickPOMDPs, POMDPModelTools, POMDPSimulators, QMDP
 using POMDPTools: Deterministic, Uniform, SparseCat, RandomPolicy
 using DataStructures: OrderedDict
 
-using ..Gensimo
+using Gensimo
 
 function simulate!(conductor::Conductor)
     # Treat every case separately.

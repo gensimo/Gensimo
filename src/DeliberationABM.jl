@@ -4,7 +4,7 @@ using Agents, Random, Dates
 using POMDPTools # For `Deterministic`
 using DataStructures: OrderedDict
 
-using ..Gensimo
+using Gensimo
 
 @agent Client NoSpaceAgent begin
     state::State

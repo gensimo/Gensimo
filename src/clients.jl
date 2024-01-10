@@ -47,7 +47,7 @@ end
 struct Service
     label::String # Description of the service.
     cost::Float64 # Monetary cost of the service in e.g. AUD.
-    labour::Integer # Labour cost of the service in person-hours.
+    labour::Float64 # Labour cost of the service in person-hours.
     approved::Bool # Whether the service request is approved or denied.
 end
 
