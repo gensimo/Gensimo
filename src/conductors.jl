@@ -42,7 +42,7 @@ function nrequests( client::Client # The client, including health state(s).
     # If not provided, get the pseudo-randomness from device.
     isnothing(rng) ? rng = RandomDevice() : rng
     # Deliver.
-    return n(τ(client, date), λ(client), β)
+    return n(dτ(client, date), λ(client), β, rng)
 end
 
 function request_cost( client::Client # The client, including health state(s).
@@ -54,7 +54,7 @@ function request_cost( client::Client # The client, including health state(s).
     # If not provided, get the pseudo-randomness from device.
     isnothing(rng) ? rng = RandomDevice() : rng
     # Deliver.
-    return basecost * n(τ(client, date), λ(client), β)
+    return basecost * n(dτ(client, date), λ(client), β, rng)
 end
 
 struct Context

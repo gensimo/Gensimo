@@ -44,8 +44,6 @@ function λ(state::State, mean=:harmonic)
     mean == :harmonic && return map(x->1/x, big6(state)) |> sum |> x->1/(6/x)
 end
 
-λ(mean=:harmonic) = state -> λ(state, mean)
-
 struct Service
     label::String # Description of the service.
     cost::Float64 # Monetary cost of the service in e.g. AUD.
@@ -162,6 +160,7 @@ personalia(client::Client) = client.personalia
 history(client::Client) = client.history
 claim(client::Client) = client.claim
 # Assorted derivative accessors.
+age(client::Client) = client |> personalia |> age
 dates(client::Client) = history(client) |> keys |> collect |> sort
 states(client::Client) = [ history(client)[date] for date ∈ dates(client) ]
 date(client::Client) = dates(client)[end]
@@ -170,9 +169,28 @@ dayzero(client::Client) = dates(client)[1]
 # Other utility functions.
 τ(client::Client, date::Date) = date - dayzero(client) |> Dates.value
 τ(date::Date) = client -> τ(client, date)
-nids(client::Client) = client |> state |> nids
+dτ(client::Client, date::Date) = date - date(client) |> Dates.value
+dτ(date::Date) = client -> dτ(client, date)
 λ(client::Client, mean=:harmonic) = λ(client |> state, mean)
-λ(mean=:harmonic) = client -> λ(client |> state, mean)
+Base.:(+)(client::Client, event::Event) = ( client.claim += event
+                                          ; client )
+events(client::Client) = client |> claim |> events
+segment(client::Client) = [ event for event in events(client)
+                            if change(event) isa Segment ][end] |> change
+"""NB: NIDS of a `Client` gives assesed NIDS != nids(client |> state)."""
+nids(client::Client) = [ event for event in events(client)
+                         if change(event) isa Integer ][end] |> change
+
+function λ(mean=:harmonic)
+    function(x)
+        if typeof(x) == Client
+            return λ(x |> state, mean)
+        end
+        if typeof(x) == State
+            return λ(x, mean)
+        end
+    end
+end
 
 function Client(id, pos, personalia, history, claim)
     date = sort(collect(keys(history)))[end]
