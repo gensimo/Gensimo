@@ -17,8 +17,8 @@ function events(from_date, to_date, lambda)
     return sort(events)
 end
 
-function n( t # Number of days passed since day zero.
-          , λ # Initial hazard rate (mean #requests at day zero).
+function n( t # Number of days passed.
+          , λ # Initial hazard rate (mean #requests at previous date).
           , β # Decay rate of exponential decline of λ.
           , rng=nothing # Pseudo random number generator.
           )
@@ -45,6 +45,15 @@ function nrequests( client::Client # The client, including health state(s).
     return n(dτ(client, date), λ(client), β, rng)
 end
 
+function nrequests(state::State, rng=nothing)
+    # If not provided, get the pseudo-randomness from device.
+    isnothing(rng) ? rng = RandomDevice() : rng
+    # Deliver.
+    return rand(rng, Poisson(λ(state)))
+end
+
+nrequests(client::Client, rng=nothing) = nrequests(client |> state, rng)
+
 function request_cost( client::Client # The client, including health state(s).
                      , date::Date # At which request is placed.
                      , β=.01 # Decay rate, defaults to ~37% in 100 days.
@@ -56,6 +65,8 @@ function request_cost( client::Client # The client, including health state(s).
     # Deliver.
     return basecost * n(dτ(client, date), λ(client), β, rng)
 end
+
+request_cost(client, rng=nothing) = nrequests(client, rng)
 
 struct Context
     # Necessary context --- these fields are needed by any simulation.

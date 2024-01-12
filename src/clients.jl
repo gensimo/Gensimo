@@ -38,10 +38,16 @@ function nids(state::State)
     return heaviside.(.5 .- big6(state)) |> sum |> Integer
 end
 
-function λ(state::State, mean=:harmonic)
-    mean == :arithmetic && return big6(state) |> sum |> x->1/(x/6)
-    mean == :geometric && return big6(state) |> prod |> x->1/(x^(1/6))
-    mean == :harmonic && return map(x->1/x, big6(state)) |> sum |> x->1/(6/x)
+# function λ(state::State, mean=:harmonic)
+    # mean == :arithmetic && return big6(state) |> sum |> x->1/(x/6)
+    # mean == :geometric && return big6(state) |> prod |> x->1/(x^(1/6))
+    # mean == :harmonic && return map(x->1/x, big6(state)) |> sum |> x->1/(6/x)
+# end
+
+function λ(state::State, mean=:arithmetic)
+    mean == :arithmetic && return state[1:2] |> sum |> x->1/(x/2) - 1
+    mean == :geometric && return state[1:2] |> prod |> x->1/(x^(1/2)) - 1
+    mean == :harmonic && return map(x->1/x, state[1:2]) |> sum |> x->1/(2/x) - 1
 end
 
 struct Service
@@ -169,9 +175,9 @@ dayzero(client::Client) = dates(client)[1]
 # Other utility functions.
 τ(client::Client, date::Date) = date - dayzero(client) |> Dates.value
 τ(date::Date) = client -> τ(client, date)
-dτ(client::Client, date::Date) = date - date(client) |> Dates.value
+dτ(client::Client, datum::Date) = datum - date(client) |> Dates.value
 dτ(date::Date) = client -> dτ(client, date)
-λ(client::Client, mean=:harmonic) = λ(client |> state, mean)
+λ(client::Client, mean=:arithmetic) = λ(client |> state, mean)
 Base.:(+)(client::Client, event::Event) = ( client.claim += event
                                           ; client )
 events(client::Client) = client |> claim |> events
