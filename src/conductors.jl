@@ -66,7 +66,7 @@ function request_cost( client::Client # The client, including health state(s).
     return basecost * n(dτ(client, date), λ(client), β, rng)
 end
 
-request_cost(client, rng=nothing) = nrequests(client, rng)
+request_cost(client, base=100.0, rng=nothing) = base*nrequests(client, rng)
 
 struct Context
     # Necessary context --- these fields are needed by any simulation.
@@ -106,7 +106,7 @@ function Conductor( context::Context
                   , nclients::Integer=1 )
     # Create random clients, with epoch < `dayzero` < eschaton.
     clients = [ Client( Personalia()
-                      , Dict(rand(epoch:Day(1):eschaton)=>State(rand(12)))
+                      , [ (rand(epoch:Day(1):eschaton), State(rand(12))) ]
                       , Claim() ) for i ∈ 1:nclients ]
     # Instantiate and deliver the object.
     return Conductor( context

@@ -53,15 +53,18 @@ function costseriesplot(conductor; cases=nothing, layout=:ensemble)
         end
 end
 
+"""Use a decent Garamond for the plot."""
+settheme!() = Makie.set_theme!( fontsize=14
+                        , fonts=(
+                                ; regular="Garamond"
+                                , bold="Garamond Bold"
+                                , italic="Garamond Italic"
+                                , bold_italic="Garamond Bold Italic" )
+                        )
+
 function costseriesplot_ensemble(conductor; cases=nothing)
     # Use a decent Garamond for the plot.
-    set_theme!( fontsize=14
-              , fonts=(
-                      ; regular="Garamond"
-                      , bold="Garamond Bold"
-                      , italic="Garamond Italic"
-                      , bold_italic="Garamond Bold Italic" )
-              )
+    settheme!()
     # Obtain Figure and Axis objects.
     fig = Figure()
     ax = Axis( fig[1, 1]
@@ -98,13 +101,7 @@ end
 
 function costseriesplot_tiled(conductor; cases=nothing)
     # Use a decent Garamond for the plot.
-    set_theme!( fontsize=14
-              , fonts=(
-                      ; regular="Garamond"
-                      , bold="Garamond Bold"
-                      , italic="Garamond Italic"
-                      , bold_italic="Garamond Bold Italic" )
-              )
+    settheme!()
     # Obtain Figure object.
     fig = Figure()
     axes = []
@@ -144,21 +141,19 @@ function costseriesplot_tiled(conductor; cases=nothing)
     return fig, axes, plt
 end
 
-function datesplot(dates::Vector{Date}, values, labels=nothing)
+function datesplot( dates::Vector{Date}, values
+                  ; labels=""
+                  , title=""
+                  , xlabel=""
+                  , ylabel="" )
     # Use a decent Garamond for the plot.
-    set_theme!( fontsize=14
-              , fonts=(
-                      ; regular="Garamond"
-                      , bold="Garamond Bold"
-                      , italic="Garamond Italic"
-                      , bold_italic="Garamond Bold Italic" )
-              )
+    settheme!()
     # Obtain fig and ax objects.
     fig = Figure()
     ax = Axis( fig[1, 1]
-             , xlabel=""
-             , ylabel="Cumulative Cost [ \$ ]"
-             , title="Cost History")
+             , xlabel=xlabel
+             , ylabel=xlabel
+             , title=title )
     # Convert dates to integers, i.e. days since rounding epoch.
     days = Dates.date2epochdays.(dates)
     # Plot against those integers. Put labels if provided.
@@ -176,4 +171,86 @@ function datesplot(dates::Vector{Date}, values, labels=nothing)
     display(fig)
     # Deliver.
     return fig, ax, plt
+end
+
+function datesplots( dateses::Vector{Vector{Date}} # List of lists of dates.
+                   , valueses # List of lists of values.
+                   ; labelses=nothing # List of lists of e.g. strings.
+                   , titles=nothing # List of strings.
+                   , xlabels=nothing # List of strings.
+                   , ylabels=nothing # List of strings.
+                   , ylimses=nothing # List of tuples or vectors.
+                   )
+    n = length(dateses)
+    # Use a decent Garamond for the plot.
+    settheme!()
+    # Obtain Figure object.
+    fig = Figure()
+    axes = []
+    plt = nothing # Just so it is there to be assigned to in the loop below.
+    # Prepare labels etc.
+    isnothing(ylabels) ? ylabels = [ "" for i ∈ 1:n ] : ylabels
+    isnothing(xlabels) ? xlabels = [ "" for i ∈ 1:n ] : xlabels
+    isnothing(titles) ? titles = [ "" for i ∈ 1:n ] : titles
+    isnothing(ylimses) ? ylimses = [ nothing for i ∈ 1:n ] : ylimses
+    # Add axes for each data set.
+    for i in 1:length(dateses)
+        # Make plots appear as rows.
+        ax = Axis( fig[i, 1]
+                 , title=titles[i]
+                 , xlabel=xlabels[i]
+                 , ylabel=ylabels[i] )
+        # Specify the vertical axis end points, if desired.
+        if !isnothing(ylimses[i])
+            ylims!(ax, ylimses[i])
+        end
+        # Link the axes, so they have the same scale.
+        if i > 1
+            linkxaxes!(axes[1], ax)
+        end
+        # Collect dates and cost lists for this case from the Conductor object.
+        dates = dateses[i]
+        values = valueses[i]
+        # Convert dates to integers, i.e. days since rounding epoch.
+        days = Dates.date2epochdays.(dates)
+        # Plot against those integers.
+        plt = scatterlines!(ax, days, values, color=:black)
+        # Then put the dates in place of those integers.
+        ax.xticks = (days, string.(dates))
+        # Quarter π rotation to avoid clutter.
+        ax.xticklabelrotation = π/4
+        # Add this Axis to the list.
+        push!(axes, ax)
+    end
+    # Show me what you got.
+    display(fig)
+    # Deliver.
+    return fig, axes, plt
+end
+
+function clientplot(client::Client)
+    # Use a decent Garamond for the plot.
+    settheme!()
+    # Obtain dates and values of the client's history.
+    days_ϕψ = client |> dates
+    vals_ϕ = map(t->t[1], client |> states)
+    vals_ψ = map(t->t[2], client |> states)
+    vals_cost = cost.(client |> events) |> cumsum
+    vals_labour = labour.(client |> events) |> cumsum
+    days_cl = date.(client |> events)
+    dateses = [ days_ϕψ, days_ϕψ # For ϕ and ψ.
+              , days_cl, days_cl ] # For cost and labour.
+    return datesplots( dateses
+                     , [ vals_ϕ
+                       , vals_ψ
+                       , vals_cost
+                       , vals_labour ]
+                     , ylabels=[ "ϕ [%]"
+                               , "ψ [%]"
+                               , "Cummulative cost [\$]"
+                               , "Cummulative labour [hrs]" ]
+                     , ylimses=[ (0, 1)
+                               , (0, 1)
+                               , nothing
+                               , nothing ] )
 end

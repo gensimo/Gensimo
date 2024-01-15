@@ -85,6 +85,21 @@ date(e::Event) = e.date
 change(e::Event) = e.change
 Base.isless(e1::Event, e2::Event) = date(e1) < date(e2)
 
+function cost(event::Event)
+    if event |> change |> typeof == Service
+        return event |> change |> cost
+    else
+        return 0.0
+    end
+end
+
+function labour(event::Event)
+    typeofchange = event |> change |> typeof
+    typeofchange == Service && return event |> change |> labour
+    typeofchange == Segment && return 0.0
+    typeofchange isa Integer && return 0.0
+end
+
 struct Claim
     events::Vector{Event}
 end
@@ -157,9 +172,16 @@ sex(p::Personalia) = p.sex
 
 @agent Client ContinuousAgent{2} begin
     personalia::Personalia
-    history::Dict{Date, State}
+    history::Vector{Tuple{Date, State}}
     claim::Claim
 end
+
+# Make working with history-field easy.
+Base.isless(h1::Tuple{Date, State}, h2::Tuple{Date, State}) = h1[1] < h2[1]
+dates(history::Vector{Tuple{Date, State}}) = map(t->t[1], history |> sort)
+states(history::Vector{Tuple{Date, State}}) = map(t->t[2], history |> sort)
+date(history::Vector{Tuple{Date, State}}) = dates(history)[end]
+state(history::Vector{Tuple{Date, State}}) = states(history)[end]
 
 # Accessors.
 personalia(client::Client) = client.personalia
@@ -167,11 +189,13 @@ history(client::Client) = client.history
 claim(client::Client) = client.claim
 # Assorted derivative accessors.
 age(client::Client) = client |> personalia |> age
-dates(client::Client) = history(client) |> keys |> collect |> sort
-states(client::Client) = [ history(client)[date] for date ∈ dates(client) ]
-date(client::Client) = dates(client)[end]
-state(client::Client) = history(client)[date(client)]
+dates(client::Client) = client |> history |> dates
+states(client::Client) = client |> history |> states
+date(client::Client) = client |> history |> date
+state(client::Client) = client |> history |> state
 dayzero(client::Client) = dates(client)[1]
+services(client::Client) = client |> claim |> services
+events(client::Client) = client |> claim |> events
 # Other utility functions.
 τ(client::Client, date::Date) = date - dayzero(client) |> Dates.value
 τ(date::Date) = client -> τ(client, date)
@@ -180,7 +204,9 @@ dτ(date::Date) = client -> dτ(client, date)
 λ(client::Client, mean=:arithmetic) = λ(client |> state, mean)
 Base.:(+)(client::Client, event::Event) = ( client.claim += event
                                           ; client )
-events(client::Client) = client |> claim |> events
+nservices(client::Client) = client |> services |> length
+nevents(client::Client) = client |> events |> length
+nstates(client::Client) = client |> states |> length
 segment(client::Client) = [ event for event in events(client)
                             if change(event) isa Segment ][end] |> change
 """NB: NIDS of a `Client` gives assesed NIDS != nids(client |> state)."""
@@ -199,10 +225,9 @@ function λ(mean=:harmonic)
 end
 
 function Client(id, pos, personalia, history, claim)
-    date = sort(collect(keys(history)))[end]
-    state = history[date]
+    s = history |> state
     return Client( id # Agent ID.
-                 , (state[1], state[2]) # 2D (ϕ, ψ) 'location' vector.
+                 , (s[1], s[2]) # 2D (ϕ, ψ) 'location' vector.
                  , (0.0, 0.0) # Dummy 'velocity' vector.
                  , personalia
                  , history
@@ -210,10 +235,9 @@ function Client(id, pos, personalia, history, claim)
 end
 
 function Client(id, personalia, history, claim)
-    date = sort(collect(keys(history)))[end]
-    state = history[date]
+    s = history |> state
     return Client( id # Agent ID.
-                 , (state[1], state[2]) # 2D (ϕ, ψ) 'location' vector.
+                 , (s[1], s[2]) # 2D (ϕ, ψ) 'location' vector.
                  , (0.0, 0.0) # Dummy 'velocity' vector.
                  , personalia
                  , history
@@ -245,13 +269,16 @@ function reset_client()
 end
 
 function Base.show(io::IO, client::Client)
+    n = client |> nevents
+    n < 10 ? n : n=10
     println( io
            , "Client ID: ", client.id, "\n"
            , personalia(client)
            , "Status (", date(client), "):\n"
            , "  | ϕ = ", state(client)[1], "\n"
            , "  | ψ = ", state(client)[2], "\n"
-           , "Claim:", "\n"
+           , "Claim (showing ", n , "/", nevents(client), " newest events):"
+           , "\n"
            , claim(client)
            )
 end
@@ -266,8 +293,10 @@ end
 
 function Base.show(io::IO, claim::Claim)
     if !isempty(claim.events)
-        for event in events(claim)
-            println(io, event)
+        n = claim |> events |> length
+        n < 10 ? n : n=10
+        for i in 1:n
+            println(io, events(claim)[i])
         end
     else
         print(io, "  | Empty claim.")

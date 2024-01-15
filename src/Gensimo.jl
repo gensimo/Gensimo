@@ -4,9 +4,10 @@ module Gensimo
 include("clients.jl")
 export Claim, events, services
 export Client, reset_client, personalia, history, claim,
-       dates, date, states, state, dayzero,
-       nids, τ, dτ, nrequests, request_cost, λ, age
-export Event, date, change
+       dates, date, states, nstates, state, dayzero,
+       nids, τ, dτ, nrequests, request_cost, λ, age,
+       events, nevents, services, nservices
+export Event, date, change, cost, labour
 export Personalia, name, age, sex
 export Segment, division, branch, team, manager
 export Service, label, cost, labour, approved
