@@ -1,5 +1,5 @@
 using Agents
-using StaticArrays, Dates, Printf
+using DataFrames, StaticArrays, Dates, Printf
 
 function heaviside(x::Real)
     if x>=0
@@ -262,10 +262,26 @@ end
 
 function reset_client()
     Client( Personalia()
-          , Dict(Date(2020)=>State(rand(12)))
+          , [ (Date(2020), State(rand(12))) ]
           , Claim()
           ; id=0 )
     return nothing
+end
+
+function isactive(client::Client, refdate::Date)
+    lasteventdate = (client |> events)[end] |> date
+    afterzero = dayzero(client) <= refdate
+    beforeend = refdate - lasteventdate < Day(90)
+    return afterzero && beforeend
+end
+
+function workload(client::Client)
+    dates = date.(client |> events)
+    hours = labour.(client |> events)
+    df = DataFrame( date=date.(client |> events)
+                  , hours=labour.(client |> events) )
+    gdf = combine(groupby(df, :date), :hours => sum)
+    return gdf.date, gdf.hours_sum
 end
 
 function Base.show(io::IO, client::Client)

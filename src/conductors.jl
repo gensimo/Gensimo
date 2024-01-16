@@ -100,6 +100,8 @@ context(c::Conductor) = c.context
 epoch(c::Conductor) = c.epoch
 eschaton(c::Conductor) = c.eschaton
 clients(c::Conductor) = c.clients
+# Derivative accessors.
+nclients(conductor::Conductor) = conductor |> clients |> length
 
 function Conductor( context::Context
                   , epoch::Date, eschaton::Date
@@ -129,11 +131,19 @@ function Conductor( context::Context
     end
 end
 
-function extract( conductor::Conductor
-                ; what=:costs )
-    return Dict( case =>
-                 ( collect(keys(conductor.histories[case]))
-                 # TODO: Convert below to Float64.
-                 , cost.(collect(values(conductor.histories[case]))) )
-                 for case in conductor.cases )
+function nactive(conductor::Conductor, date::Date)
+    return [ isactive(client, date) for client in clients(conductor) ] |> sum
+end
+
+function statistics(conductor::Conductor)
+    ncs = conductor |> nclients
+    simulation_window = (conductor |> epoch, conductor |> eschaton)
+    first_dayzero = sort(dayzero.(clients(conductor)))[1]
+    last_event = sort(date.(conductor |> clients))[end]
+    event_window = (first_dayzero, last_event)
+    # Deliver the statistics as a named tuple.
+    return ( nclients = ncs
+           , simulation_window = simulation_window
+           , event_window = event_window
+           )
 end

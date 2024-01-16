@@ -1,4 +1,12 @@
-using GraphMakie, Graphs, GLMakie, Dates
+using GraphMakie, Graphs, Dates
+
+# Black magic to import GLMakie except for `events()`.
+import GLMakie
+for x in names(GLMakie)
+    if x != :events
+        @eval import GLMakie.$x
+    end
+end
 
 function baseplot(g) # Basic graph plotting with nice defaults.
     fig, ax, p = graphplot( g
@@ -215,8 +223,9 @@ function datesplots( dateses::Vector{Vector{Date}} # List of lists of dates.
         days = Dates.date2epochdays.(dates)
         # Plot against those integers.
         plt = scatterlines!(ax, days, values, color=:black)
-        # Then put the dates in place of those integers.
-        ax.xticks = (days, string.(dates))
+        # Then put the dates in place of those integers
+        # --- need to do `unique` to avoid Makie bug about "range step zero".
+        ax.xticks = (days |> unique, string.(dates |> unique))
         # Quarter π rotation to avoid clutter.
         ax.xticklabelrotation = π/4
         # Add this Axis to the list.
@@ -232,25 +241,35 @@ function clientplot(client::Client)
     # Use a decent Garamond for the plot.
     settheme!()
     # Obtain dates and values of the client's history.
-    days_ϕψ = client |> dates
+    days_ϕψσ = client |> dates
     vals_ϕ = map(t->t[1], client |> states)
     vals_ψ = map(t->t[2], client |> states)
+    vals_σ = map(t->t[12], client |> states)
     vals_cost = cost.(client |> events) |> cumsum
     vals_labour = labour.(client |> events) |> cumsum
     days_cl = date.(client |> events)
-    dateses = [ days_ϕψ, days_ϕψ # For ϕ and ψ.
+    dateses = [ days_ϕψσ, days_ϕψσ, days_ϕψσ# For ϕ, ψ and σ.
               , days_cl, days_cl ] # For cost and labour.
     return datesplots( dateses
                      , [ vals_ϕ
                        , vals_ψ
+                       , vals_σ
                        , vals_cost
                        , vals_labour ]
                      , ylabels=[ "ϕ [%]"
                                , "ψ [%]"
+                               , "σ [%]"
                                , "Cummulative cost [\$]"
                                , "Cummulative labour [hrs]" ]
                      , ylimses=[ (0, 1)
                                , (0, 1)
+                               , (0, 1)
                                , nothing
                                , nothing ] )
+end
+
+function conductorplot()
+    # Use a decent Garamond for the plot.
+    settheme!()
+    print("RWARK!!!")
 end
