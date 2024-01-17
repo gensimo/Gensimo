@@ -213,7 +213,7 @@ segment(client::Client) = [ event for event in events(client)
 nids(client::Client) = [ event for event in events(client)
                          if change(event) isa Integer ][end] |> change
 
-function λ(mean=:harmonic)
+function λ(mean=:arithmetic)
     function(x)
         if typeof(x) == Client
             return λ(x |> state, mean)
@@ -269,7 +269,11 @@ function reset_client()
 end
 
 function isactive(client::Client, refdate::Date)
-    lasteventdate = (client |> events)[end] |> date
+    if isempty(client |> events)
+        lasteventdate = dayzero(client)
+    else
+        lasteventdate = (client |> events)[end] |> date
+    end
     afterzero = dayzero(client) <= refdate
     beforeend = refdate - lasteventdate < Day(90)
     return afterzero && beforeend
@@ -280,8 +284,9 @@ function workload(client::Client)
     hours = labour.(client |> events)
     df = DataFrame( date=date.(client |> events)
                   , hours=labour.(client |> events) )
+    df = sort(df, :date)
     gdf = combine(groupby(df, :date), :hours => sum)
-    return gdf.date, gdf.hours_sum
+    return Vector{Date}(gdf.date), gdf.hours_sum
 end
 
 function Base.show(io::IO, client::Client)

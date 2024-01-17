@@ -1,4 +1,4 @@
-using Distributions, StatsBase, Dates, Random
+using DataFrames, Distributions, StatsBase, Dates, Random
 using Agents
 using DataStructures: OrderedDict
 
@@ -17,33 +17,33 @@ function events(from_date, to_date, lambda)
     return sort(events)
 end
 
-function n( t # Number of days passed.
-          , λ # Initial hazard rate (mean #requests at previous date).
-          , β # Decay rate of exponential decline of λ.
-          , rng=nothing # Pseudo random number generator.
-          )
-    # If not provided, get the pseudo-randomness from device.
-    isnothing(rng) ? rng = RandomDevice() : rng
-    if t < 0
-        return 0 # Only non-negative times are considered.
-    else
-        λ′ = λ * exp(-β*t) # Hazard rate declines exponentially.
-        n = rand(rng, Poisson(λ′)) # Draw from current Poisson distribution.
-        # Deliver.
-        return n
-    end
-end
+# function n( t # Number of days passed.
+          # , λ # Initial hazard rate (mean #requests at previous date).
+          # , β # Decay rate of exponential decline of λ.
+          # , rng=nothing # Pseudo random number generator.
+          # )
+    # # If not provided, get the pseudo-randomness from device.
+    # isnothing(rng) ? rng = RandomDevice() : rng
+    # if t < 0
+        # return 0 # Only non-negative times are considered.
+    # else
+        # λ′ = λ * exp(-β*t) # Hazard rate declines exponentially.
+        # n = rand(rng, Poisson(λ′)) # Draw from current Poisson distribution.
+        # # Deliver.
+        # return n
+    # end
+# end
 
-function nrequests( client::Client # The client, including health state(s).
-                  , date::Date # For which the number of requests is requested.
-                  , β=.01 # Decay rate, defaults to ~37% in 100 days.
-                  , rng=nothing # Pseudo random number generator.
-                  )
-    # If not provided, get the pseudo-randomness from device.
-    isnothing(rng) ? rng = RandomDevice() : rng
-    # Deliver.
-    return n(dτ(client, date), λ(client), β, rng)
-end
+# function nrequests( client::Client # The client, including health state(s).
+                  # , date::Date # For which the number of requests is requested.
+                  # , β=.01 # Decay rate, defaults to ~37% in 100 days.
+                  # , rng=nothing # Pseudo random number generator.
+                  # )
+    # # If not provided, get the pseudo-randomness from device.
+    # isnothing(rng) ? rng = RandomDevice() : rng
+    # # Deliver.
+    # return n(dτ(client, date), λ(client), β, rng)
+# end
 
 function nrequests(state::State, rng=nothing)
     # If not provided, get the pseudo-randomness from device.
@@ -102,13 +102,26 @@ eschaton(c::Conductor) = c.eschaton
 clients(c::Conductor) = c.clients
 # Derivative accessors.
 nclients(conductor::Conductor) = conductor |> clients |> length
+timeline(conductor::Conductor) = ( epoch(conductor):Day(1):eschaton(conductor)
+                                   |> collect )
 
 function Conductor( context::Context
                   , epoch::Date, eschaton::Date
-                  , nclients::Integer=1 )
-    # Create random clients, with epoch < `dayzero` < eschaton.
+                  , nclients::Integer=1
+                  ; cohort=:uniform # or :uniform.
+                  )
+    # Reset the client ids.
+    reset_client()
+    # Create random clients according to cohort setting.
+    if cohort == :firstyear # All clients have day zero in first year.
+        dates = epoch:Day(1):epoch+Year(1)
+    elseif cohort == :uniform # Clients have days zeros anywhere in timeline.
+        dates = epoch:Day(1):eschaton
+    else # Default to :uniform cohort setting.
+        dates = epoch:Day(1):eschaton
+    end
     clients = [ Client( Personalia()
-                      , [ (rand(epoch:Day(1):eschaton), State(rand(12))) ]
+                      , [ (dates |> rand, State(rand(12))) ]
                       , Claim() ) for i ∈ 1:nclients ]
     # Instantiate and deliver the object.
     return Conductor( context
@@ -133,6 +146,42 @@ end
 
 function nactive(conductor::Conductor, date::Date)
     return [ isactive(client, date) for client in clients(conductor) ] |> sum
+end
+
+function nactive(conductor::Conductor)
+    return ( timeline(conductor)
+           , (date->nactive(conductor, date)).(timeline(conductor)) )
+end
+
+function workload(conductor::Conductor)
+    dateses = []
+    hourses = []
+    for client in clients(conductor)
+        append!(dateses, workload(client)[1])
+        append!(hourses, workload(client)[2])
+    end
+    df = sort(DataFrame(date=dateses, hours=hourses), :date)
+    gdf = combine(groupby(df, :date), :hours => sum)
+    return Vector{Date}(gdf.date), gdf.hours_sum
+end
+
+function workload_average(conductor::Conductor)
+    dateses = []
+    hourses = []
+    n = nclients(conductor)
+    for client in clients(conductor)
+        dates, hours = workload(client)
+        if !isempty(dates)
+            firstdate = minimum(dates)
+            dates = Dates.epochdays2date.(Dates.value.(dates - firstdate))
+            append!(dateses, dates)
+            append!(hourses, hours)
+        end
+        hourses /= n
+    end
+    df = sort(DataFrame(date=dateses, hours=hourses), :date)
+    gdf = combine(groupby(df, :date), :hours => sum)
+    return Vector{Date}(gdf.date), gdf.hours_sum
 end
 
 function statistics(conductor::Conductor)

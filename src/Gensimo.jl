@@ -24,8 +24,8 @@ export baseplot, gplot, datesplot,
 
 # Include and export essentials from conductors.jl.
 include("conductors.jl")
-export Conductor, clients, nclients, context, epoch, eschaton, nactive,
-       statistics
+export Conductor, clients, nclients, context, epoch, eschaton, timeline,
+       nactive, statistics, workload, workload_average
 export Context, services, segments, states, probabilities
 
 end # Module Gensimo.

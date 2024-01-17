@@ -153,7 +153,8 @@ function datesplot( dates::Vector{Date}, values
                   ; labels=""
                   , title=""
                   , xlabel=""
-                  , ylabel="" )
+                  , ylabel=""
+                  , maxdates=20 )
     # Use a decent Garamond for the plot.
     settheme!()
     # Obtain fig and ax objects.
@@ -171,15 +172,35 @@ function datesplot( dates::Vector{Date}, values
              , position=collect(zip(days, values))
              , align=(:left, :bottom) )
     end
-    # Then put the dates in place of those integers.
+    # Duplicates are unnecessary and may trigger Makie bug.
+    days = days |> unique
+    dates = dates |> unique
+    # Too many dates clutter the horizontal axis.
+    if length(days) > maxdates
+        ndays = days[1]:days[end] |> length # All days, superset of `days`.
+        step = round(Integer, ndays / maxdates)
+        lastday = days[end]
+        days = days[1]:step:days[end] |> collect
+        if !(lastday in days)
+            push!(days, lastday)
+        end
+        lastdate = dates[end]
+        dates = dates[1]:Day(step):dates[end] |> collect
+        if !(lastdate in dates)
+            push!(dates, lastdate)
+        end
+    end
+    # Then put the dates in place of integers.
     ax.xticks = (days, string.(dates))
     # Quarter π rotation to avoid clutter.
     ax.xticklabelrotation = π/4
     # Show me what you got.
     display(fig)
     # Deliver.
-    return fig, ax, plt
+    return days, dates # fig, ax, plt
 end
+
+datesplot(dates_values, kwargs...) = datesplot(dates_values..., kwargs...)
 
 function datesplots( dateses::Vector{Vector{Date}} # List of lists of dates.
                    , valueses # List of lists of values.
@@ -188,6 +209,8 @@ function datesplots( dateses::Vector{Vector{Date}} # List of lists of dates.
                    , xlabels=nothing # List of strings.
                    , ylabels=nothing # List of strings.
                    , ylimses=nothing # List of tuples or vectors.
+                   , maxdates=20
+                   , linked=:all
                    )
     n = length(dateses)
     # Use a decent Garamond for the plot.
@@ -212,10 +235,6 @@ function datesplots( dateses::Vector{Vector{Date}} # List of lists of dates.
         if !isnothing(ylimses[i])
             ylims!(ax, ylimses[i])
         end
-        # Link the axes, so they have the same scale.
-        if i > 1
-            linkxaxes!(axes[1], ax)
-        end
         # Collect dates and cost lists for this case from the Conductor object.
         dates = dateses[i]
         values = valueses[i]
@@ -223,13 +242,37 @@ function datesplots( dateses::Vector{Vector{Date}} # List of lists of dates.
         days = Dates.date2epochdays.(dates)
         # Plot against those integers.
         plt = scatterlines!(ax, days, values, color=:black)
-        # Then put the dates in place of those integers
         # --- need to do `unique` to avoid Makie bug about "range step zero".
-        ax.xticks = (days |> unique, string.(dates |> unique))
+        # Duplicates are unnecessary and may trigger Makie bug.
+        days = days |> unique
+        dates = dates |> unique
+        # Too many dates clutter the horizontal axis.
+        if length(days) > maxdates
+            ndays = days[1]:days[end] |> length # All days, superset of `days`.
+            step = round(Integer, ndays / maxdates)
+            lastday = days[end]
+            days = days[1]:step:days[end] |> collect
+            if !(lastday in days)
+                push!(days, lastday)
+            end
+            lastdate = dates[end]
+            dates = dates[1]:Day(step):dates[end] |> collect
+            if !(lastdate in dates)
+                push!(dates, lastdate)
+            end
+        end
+        # Then put the dates in place of integers
+        ax.xticks = (days, string.(dates))
         # Quarter π rotation to avoid clutter.
         ax.xticklabelrotation = π/4
         # Add this Axis to the list.
         push!(axes, ax)
+    end
+    # Link the chosen axes, so they have the same scale.
+    if linked == :all
+        linkxaxes!([axes[i] for i in 1:length(dateses)]...)
+    else
+        linkxaxes!([axes[i] for i in linked]...)
     end
     # Show me what you got.
     display(fig)
@@ -268,8 +311,19 @@ function clientplot(client::Client)
                                , nothing ] )
 end
 
-function conductorplot()
+function conductorplot(conductor::Conductor)
     # Use a decent Garamond for the plot.
     settheme!()
-    print("RWARK!!!")
+    # Collect the series to plot.
+    wload_dates, wload_values = workload(conductor)
+    wloadave_dates, wloadave_values = workload_average(conductor)
+
+    # Send to datesplots() and deliver.
+    return datesplots( [wload_dates, wloadave_dates]
+                     , [wload_values, wloadave_values]
+                     , ylabels = [ "Workload [hours/day]"
+                                 , "Average workload per client [hours/day]" ]
+                     , ylimses = [ nothing
+                                 , nothing ]
+                     , linked=[1] )
 end
