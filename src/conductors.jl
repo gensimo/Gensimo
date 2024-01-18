@@ -157,8 +157,9 @@ function workload(conductor::Conductor)
     dateses = []
     hourses = []
     for client in clients(conductor)
-        append!(dateses, workload(client)[1])
-        append!(hourses, workload(client)[2])
+        dates, hours = workload(client)
+        append!(dateses, dates)
+        append!(hourses, hours)
     end
     df = sort(DataFrame(date=dateses, hours=hourses), :date)
     gdf = combine(groupby(df, :date), :hours => sum)
@@ -177,11 +178,45 @@ function workload_average(conductor::Conductor)
             append!(dateses, dates)
             append!(hourses, hours)
         end
-        hourses /= n
     end
+    hourses /= n
     df = sort(DataFrame(date=dateses, hours=hourses), :date)
     gdf = combine(groupby(df, :date), :hours => sum)
     return Vector{Date}(gdf.date), gdf.hours_sum
+end
+
+function cost(conductor::Conductor; cumulative=false)
+    dateses = []
+    dollarses = []
+    for client in clients(conductor)
+        dates, dollars = cost(client)
+        append!(dateses, dates)
+        append!(dollarses, dollars)
+    end
+    df = sort(DataFrame(date=dateses, cost=dollarses), :date)
+    gdf = combine(groupby(df, :date), :cost => sum)
+    costs = cumulative ? cumsum(gdf.cost_sum) : gdf.cost_sum
+    return Vector{Date}(gdf.date), costs
+end
+
+function cost_average(conductor::Conductor; cumulative=false)
+    dateses = []
+    dollarses = []
+    n = nclients(conductor)
+    for client in clients(conductor)
+        dates, dollars = cost(client)
+        if !isempty(dates)
+            firstdate = minimum(dates)
+            dates = Dates.epochdays2date.(Dates.value.(dates - firstdate))
+            append!(dateses, dates)
+            append!(dollarses, dollars)
+        end
+    end
+    dollarses /= n
+    df = sort(DataFrame(date=dateses, cost=dollarses), :date)
+    gdf = combine(groupby(df, :date), :cost => sum)
+    costs = cumulative ? cumsum(gdf.cost_sum) : gdf.cost_sum
+    return Vector{Date}(gdf.date), costs
 end
 
 function statistics(conductor::Conductor)

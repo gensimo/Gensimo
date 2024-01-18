@@ -282,11 +282,18 @@ end
 function workload(client::Client)
     dates = date.(client |> events)
     hours = labour.(client |> events)
-    df = DataFrame( date=date.(client |> events)
-                  , hours=labour.(client |> events) )
-    df = sort(df, :date)
+    df = sort(DataFrame(date=dates, hours=hours), :date)
     gdf = combine(groupby(df, :date), :hours => sum)
     return Vector{Date}(gdf.date), gdf.hours_sum
+end
+
+function cost(client::Client; cumulative=false)
+    dates = date.(client |> events)
+    dollars = cost.(client |> events)
+    df = sort(DataFrame(date=dates, cost=dollars), :date)
+    gdf = combine(groupby(df, :date), :cost => sum)
+    costs = cumulative ? cumsum(gdf.cost_sum) : gdf.cost_sum
+    return Vector{Date}(gdf.date), costs
 end
 
 function Base.show(io::IO, client::Client)

@@ -302,8 +302,8 @@ function clientplot(client::Client)
                      , ylabels=[ "ϕ [%]"
                                , "ψ [%]"
                                , "σ [%]"
-                               , "Cummulative cost [\$]"
-                               , "Cummulative labour [hrs]" ]
+                               , "Cumulative cost [\$]"
+                               , "Cumulative workload [hours/day]" ]
                      , ylimses=[ (0, 1)
                                , (0, 1)
                                , (0, 1)
@@ -315,15 +315,43 @@ function conductorplot(conductor::Conductor)
     # Use a decent Garamond for the plot.
     settheme!()
     # Collect the series to plot.
-    wload_dates, wload_values = workload(conductor)
-    wloadave_dates, wloadave_values = workload_average(conductor)
-
+    nactive_ds, nactive_vs = nactive(conductor)
+    workload_ds, workload_vs = workload(conductor)
+    workload_average_ds, workload_average_vs = workload_average(conductor)
+    cost_ds, cost_vs = cost(conductor)
+    cost_cum_ds, cost_cum_vs = cost(conductor, cumulative=true)
+    cost_average_cum_ds, cost_average_cum_vs = cost_average( conductor
+                                                           , cumulative=true)
+    # Collect for overview.
+    dateses = [ nactive_ds
+              , workload_ds
+              , cost_ds
+              , cost_cum_ds
+              , workload_average_ds
+              , cost_average_cum_ds
+              ]
+    valueses = [ nactive_vs
+               , workload_vs
+               , cost_vs
+               , cost_cum_vs
+               , workload_average_vs
+               , cost_average_cum_vs
+               ]
+    ylabels = [ "Active clients [#]"
+              , "Workload [hours/day]"
+              , "Cost [\$]"
+              , "Cumulative cost [\$]"
+              , "Workload (mean) per client [hours/day]"
+              , "Cost (mean, cum.) per client [\$]"
+              ]
     # Send to datesplots() and deliver.
-    return datesplots( [wload_dates, wloadave_dates]
-                     , [wload_values, wloadave_values]
-                     , ylabels = [ "Workload [hours/day]"
-                                 , "Average workload per client [hours/day]" ]
+    return datesplots( dateses, valueses
+                     ; ylabels = ylabels
                      , ylimses = [ nothing
+                                 , nothing
+                                 , nothing
+                                 , nothing
+                                 , nothing
                                  , nothing ]
-                     , linked=[1] )
+                     , linked=collect(1:4) )
 end

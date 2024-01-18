@@ -16,16 +16,16 @@ export State,
        big6, nids, healthindex
 export name, heaviside, n
 
+# Include and export essentials from conductors.jl.
+include("conductors.jl")
+export Conductor, clients, nclients, context, epoch, eschaton, timeline,
+       nactive, statistics, workload, workload_average, cost, cost_average
+export Context, services, segments, states, probabilities
+
 # Include and export essentials from display.jl.
 include("display.jl")
 export baseplot, gplot, datesplot,
        costseriesplot, costseriesplot_ensemble, costseriesplot_tiled,
        datesplots, clientplot, conductorplot
-
-# Include and export essentials from conductors.jl.
-include("conductors.jl")
-export Conductor, clients, nclients, context, epoch, eschaton, timeline,
-       nactive, statistics, workload, workload_average
-export Context, services, segments, states, probabilities
 
 end # Module Gensimo.
