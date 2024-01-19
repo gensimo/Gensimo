@@ -3,7 +3,7 @@ module Gensimo
 # Include and export essentials from clients.jl.
 include("clients.jl")
 export Claim, events, services
-export Client, reset_client, personalia, history, claim,
+export Client, reset_client, personalia, history, claim, segment
        dates, date, states, nstates, state, dayzero,
        nids, τ, dτ, nrequests, request_cost, λ, age,
        events, nevents, services, nservices,
