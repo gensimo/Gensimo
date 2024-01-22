@@ -63,6 +63,16 @@ labour(s::Service) = s.labour
 approved(s::Service) = s.approved
 
 struct Segment
+    tier::Int64
+    label::String
+end
+
+tier(segment::Segment) = segment.tier
+label(segment::Segment) = segment.label
+
+#=
+
+struct Segment
     division::String
     branch::String
     team::String
@@ -73,6 +83,8 @@ division(p::Segment) = p.division
 branch(p::Segment) = p.branch
 team(p::Segment) = p.team
 manager(p::Segment) = p.manager
+
+=#
 
 struct Event
     date::Date # When did the change to the claim occur?
@@ -244,6 +256,8 @@ function Client(id, personalia, history, claim)
                  , claim )
 end
 
+Client() = Client(Personalia(), [(Date(2020), State(rand(12)))], Claim())
+
 function ClientMaker(id=0)
     id -= 1 # So as to actually start at the current value of `id`.
     function C(personalia, history, claim)
@@ -321,9 +335,9 @@ end
 
 function Base.show(io::IO, claim::Claim)
     if !isempty(claim.events)
-        n = claim |> events |> length
-        n < 10 ? n : n=10
-        for i in 1:n
+        nevs = claim |> events |> length
+        nevs < 10 ? n=nevs : n=10
+        for i in (nevs-n)+1:nevs
             println(io, events(claim)[i])
         end
     else
@@ -352,10 +366,13 @@ end
 
 function Base.show(io::IO, segment::Segment)
     print( io
+         , "  | Tier ", tier(segment), " (", label(segment), ")"
+         #= Old Segment fields:
          , "  | Division: ", division(segment), "\n"
          , "  | Branch: ", branch(segment), "\n"
          , "  | Team: ", team(segment), "\n"
          , "  | Manager: ", manager(segment)
+         =#
          )
 end
 
