@@ -83,6 +83,11 @@ Context(services, segments) = Context( services
                                      , Dict{ Vector{Vector{String}}
                                            , AbstractArray}() )
 
+Context() = Context( Vector{Service}()
+                   , Vector{Segment}()
+                   , Vector{Vector{String}}()
+                   , Dict{Vector{String}, AbstractArray}() )
+
 services(context::Context) = context.services
 segments(context::Context) = context.segments
 states(context::Context) = context.states
