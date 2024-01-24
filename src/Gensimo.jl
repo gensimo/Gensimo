@@ -10,7 +10,7 @@ export Client, reset_client, personalia, history, claim, segment,
        isactive, workload
 export Event, date, change, cost, labour
 export Personalia, name, age, sex
-export Segment, division, branch, team, manager
+export Segment, tier, label, division, branch, team, manager
 export Service, label, cost, labour, approved
 export State,
        big6, nids, healthindex
@@ -21,7 +21,7 @@ include("conductors.jl")
 export Conductor, clients, nclients, context, epoch, eschaton, timeline,
        nactive, statistics, workload, workload_average, cost, cost_average,
        nrequests, request_cost
-export Context, services, segments, states, probabilities
+export Context, distros, services, segments, states, probabilities
 
 # Include and export essentials from display.jl.
 include("display.jl")

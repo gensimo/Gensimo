@@ -70,6 +70,7 @@ request_cost(client, base=100.0, rng=nothing) = base*nrequests(client, rng)
 
 struct Context
     # Necessary context --- these fields are needed by any simulation.
+    request_distros::Dict
     services::Vector{Service} # List of `Service`s (label, cost).
     segments::Vector{Segment} # List of `Segment`s (dvsn, brnch, tm, mngr).
     # Optional context --- these fields can be inferred or ignored.
@@ -77,17 +78,28 @@ struct Context
     probabilities::Dict{Vector{String}, AbstractArray} # Trnstn prbs.
 end
 
-Context(services, segments) = Context( services
-                                     , segments
-                                     , Vector{Vector{String}}()
-                                     , Dict{ Vector{Vector{String}}
-                                           , AbstractArray}() )
+Context( request_distros
+       , services, segments) = Context( request_distros
+                                      , services
+                                      , segments
+                                      , Vector{Vector{String}}()
+                                      , Dict{ Vector{Vector{String}}
+                                            , AbstractArray}() )
 
-Context() = Context( Vector{Service}()
+Context(request_distros) = Context( request_distros
+                                  , Vector{Service}()
+                                  , Vector{Segment}()
+                                  , Vector{Vector{String}}()
+                                  , Dict{ Vector{String}
+                                        , AbstractArray}() )
+
+Context() = Context( Dict()
+                   , Vector{Service}()
                    , Vector{Segment}()
                    , Vector{Vector{String}}()
                    , Dict{Vector{String}, AbstractArray}() )
 
+distros(context::Context) = context.request_distros
 services(context::Context) = context.services
 segments(context::Context) = context.segments
 states(context::Context) = context.states

@@ -219,8 +219,14 @@ Base.:(+)(client::Client, event::Event) = ( client.claim += event
 nservices(client::Client) = client |> services |> length
 nevents(client::Client) = client |> events |> length
 nstates(client::Client) = client |> states |> length
-segment(client::Client) = [ event for event in events(client)
-                            if change(event) isa Segment ][end] |> change
+function segment(client::Client)
+    segevents = [ e for e in events(client) if change(e) isa Segment ]
+    if isempty(segevents)
+        return nothing
+    else
+        return segevents[end] |> change
+    end
+end
 """NB: NIDS of a `Client` gives assesed NIDS != nids(client |> state)."""
 nids(client::Client) = [ event for event in events(client)
                          if change(event) isa Integer ][end] |> change
