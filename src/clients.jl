@@ -109,7 +109,7 @@ function labour(event::Event)
     typeofchange = event |> change |> typeof
     typeofchange == Service && return event |> change |> labour
     typeofchange == Segment && return 0.0
-    typeofchange isa Integer && return 0.0
+    typeofchange <: Integer && return 0.0
 end
 
 struct Claim
