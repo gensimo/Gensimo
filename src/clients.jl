@@ -70,6 +70,7 @@ end
 tier(segment::Segment) = segment.tier
 label(segment::Segment) = segment.label
 
+
 #=
 
 struct Segment
@@ -208,6 +209,13 @@ state(client::Client) = client |> history |> state
 dayzero(client::Client) = dates(client)[1]
 services(client::Client) = client |> claim |> services
 events(client::Client) = client |> claim |> events
+function tier(client::Client)
+    if isnothing(client |> segment)
+        return nothing
+    else
+        return client |> segment |> tier
+    end
+end
 # Other utility functions.
 τ(client::Client, date::Date) = date - dayzero(client) |> Dates.value
 τ(date::Date) = client -> τ(client, date)
@@ -290,7 +298,9 @@ end
 
 function isactive(client::Client, refdate::Date)
     if isempty(client |> events)
-        lasteventdate = dayzero(client)
+        return false
+        # Below leads to unsegmented but 'active' clients with no requests.
+        # lasteventdate = dayzero(client)
     else
         lasteventdate = (client |> events)[end] |> date
     end

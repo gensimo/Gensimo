@@ -280,6 +280,75 @@ function datesplots( dateses::Vector{Vector{Date}} # List of lists of dates.
     return fig, axes, plt
 end
 
+function nactiveplot( conductor::Conductor
+                    ; tiers=[1, 2, 3]
+                    , percentages=false
+                    , title=""
+                    , xlabel=""
+                    , ylabel="Number of active clients [#]"
+                    , maxdates=20 )
+    # Use a decent Garamond for the plot.
+    settheme!()
+    # Obtain fig and ax objects.
+    fig = Figure()
+    ax = Axis( fig[1, 1]
+             , xlabel=xlabel
+             , ylabel=xlabel
+             , title=title )
+    # Get the dates.
+    dates = timeline(conductor)
+    # Get the values for each tier.
+    valueses = Dict()
+    for tier in tiers
+        valueses[tier] = nactive(conductor, tier=tier)[2]
+    end
+    total = nactive(conductor)[2]
+    valueses[:total] = total
+    # Convert to percentages of :total if desired.
+    if percentages
+        for (key, val) in valueses
+            valueses[key] = val ./ total # TODO: Deal with NaNs better here.
+        end
+    end
+    # Convert dates to integers, i.e. days since rounding epoch.
+    days = Dates.date2epochdays.(dates)
+    # Plot against those integers. Put labels if provided.
+    plots = []
+    for tier in tiers
+        push!(plots, scatterlines!(ax, days, valueses[tier]))
+    end
+    push!(plots, scatterlines!(ax, days, valueses[:total]))
+    legend = fig[1, end+1] = Legend( fig
+                                   , plots
+                                   , [(string.(tiers))..., "Total"] )
+    # Duplicates are unnecessary and may trigger Makie bug.
+    days = days |> unique
+    dates = dates |> unique
+    # Too many dates clutter the horizontal axis.
+    if length(days) > maxdates
+        ndays = days[1]:days[end] |> length # All days, superset of `days`.
+        step = round(Integer, ndays / maxdates)
+        lastday = days[end]
+        days = days[1]:step:days[end] |> collect
+        if !(lastday in days)
+            push!(days, lastday)
+        end
+        lastdate = dates[end]
+        dates = dates[1]:Day(step):dates[end] |> collect
+        if !(lastdate in dates)
+            push!(dates, lastdate)
+        end
+    end
+    # Then put the dates in place of integers.
+    ax.xticks = (days, string.(dates))
+    # Quarter π rotation to avoid clutter.
+    ax.xticklabelrotation = π/4
+    # Show me what you got.
+    display(fig)
+    # Deliver.
+    return valueses# fig, ax, plt
+end
+
 function clientplot(client::Client)
     # Use a decent Garamond for the plot.
     settheme!()

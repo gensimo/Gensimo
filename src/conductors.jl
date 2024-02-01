@@ -121,6 +121,7 @@ clients(c::Conductor) = c.clients
 nclients(conductor::Conductor) = conductor |> clients |> length
 timeline(conductor::Conductor) = ( epoch(conductor):Day(1):eschaton(conductor)
                                    |> collect )
+isonscheme(client::Client, date::Date) = date >= dayzero(client)
 
 function Conductor( context::Context
                   , epoch::Date, eschaton::Date
@@ -161,13 +162,27 @@ function Conductor( context::Context
     end
 end
 
-function nactive(conductor::Conductor, date::Date)
-    return [ isactive(client, date) for client in clients(conductor) ] |> sum
+function nactive(conductor::Conductor, date::Date; tier=:ignore)
+    if tier==:ignore
+        return sum([ isactive(client, date) for client in clients(conductor) ])
+    else
+        return sum([ isactive(client, date) for client in clients(conductor)
+                     if Gensimo.tier(client) == tier ])
+    end
 end
 
-function nactive(conductor::Conductor)
+function nonscheme(conductor::Conductor, date::Date; tier=:ignore)
+    if tier==:ignore
+        return sum([ isonscheme(client, date) for client in clients(conductor)])
+    else
+        return sum([ isonscheme(client, date) for client in clients(conductor)
+                     if Gensimo.tier(client) == tier ])
+    end
+end
+
+function nactive(conductor::Conductor; tier=:ignore)
     return ( timeline(conductor)
-           , (date->nactive(conductor, date)).(timeline(conductor)) )
+           , (date->nactive(conductor, date, tier=tier)).(timeline(conductor)) )
 end
 
 function workload(conductor::Conductor)
