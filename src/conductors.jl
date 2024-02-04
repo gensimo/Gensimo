@@ -185,13 +185,21 @@ function nactive(conductor::Conductor; tier=:ignore)
            , (date->nactive(conductor, date, tier=tier)).(timeline(conductor)) )
 end
 
-function workload(conductor::Conductor)
+function workload(conductor::Conductor; tier=:ignore)
     dateses = []
     hourses = []
     for client in clients(conductor)
-        dates, hours = workload(client)
-        append!(dateses, dates)
-        append!(hourses, hours)
+        if tier != :ignore
+            if Gensimo.tier(client) == tier
+                dates, hours = workload(client)
+                append!(dateses, dates)
+                append!(hourses, hours)
+            end
+        else
+            dates, hours = workload(client)
+            append!(dateses, dates)
+            append!(hourses, hours)
+        end
     end
     df = sort(DataFrame(date=dateses, hours=hourses), :date)
     gdf = combine(groupby(df, :date), :hours => sum)

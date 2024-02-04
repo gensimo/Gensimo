@@ -1,5 +1,9 @@
 module Gensimo
 
+# Convenience function for pipelines.
+at(index) = A -> getindex(A, index)
+export at
+
 # Include and export essentials from clients.jl.
 include("clients.jl")
 export Claim, events, services
