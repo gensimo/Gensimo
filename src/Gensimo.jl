@@ -1,7 +1,8 @@
 module Gensimo
 
-# Convenience function for pipelines.
+# Convenience functions for pipelines.
 at(index) = A -> getindex(A, index)
+at(r, c) = A -> A[r, c]
 export at
 
 # Include and export essentials from clients.jl.
@@ -31,6 +32,6 @@ export Context, distros, services, segments, states, probabilities
 include("display.jl")
 export baseplot, gplot, datesplot,
        costseriesplot, costseriesplot_ensemble, costseriesplot_tiled,
-       datesplots, clientplot, conductorplot, nactiveplot 
+       datesplots, clientplot, conductorplot, nactiveplot
 
 end # Module Gensimo.

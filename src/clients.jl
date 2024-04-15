@@ -26,7 +26,7 @@ struct State <: FieldVector{12, Float64}
     satisfaction::Float64 # Satisfaction with the scheme.
 end
 
-# Black magic making, e.g. added State be of Factor type again.
+# Black magic making, e.g. added State be of State type again.
 StaticArrays.similar_type(::Type{State}, ::Type{Float64}, s::Size{(12,)}) =
 State
 
