@@ -4,21 +4,29 @@ mutable struct Clientele
     clients::Vector{Client}
 end
 
-# TODO: Make the 'clientele' part of the agents inherited from a supertype.
-
-@agent ClientAssistant NoSpaceAgent begin
-    pool::Clientele # Multiple ClientAssistants will share the same pool.
-    capacity::Float64 # Basically FTE fraction --- so workload is required FTE.
+function Base.getindex(clientele::Clientele, i)
+    return clientele.clients[i]
 end
 
-@agent ClaimsManager NoSpaceAgent begin
-    portfolio::Clientele # In principle: one portfolio, one claims manager.
+function Base.setindex!(clientele::Clientele, client::Client, i)
+    clientele.clients[i] = client
 end
 
+function Base.push!(clientele::Clientele, cs::Client...)
+    for c in cs
+        push!(clientele.clients, c)
+    end
+end
 
+Clientele() = Clientele([])
 
-struct Insurer
-    cohort::Vector{Client}
-    client_assistants::Vector{ClientAssistant}
-    claims_managers::Vector{ClaimsManager}
+@multiagent struct InsuranceWorker(NoSpaceAgent)
+    @subagent struct ClientAssistant
+        pool::Clientele # Multiple ClientAssistants will share the same pool.
+        capacity::Float64 # Basically FTE fraction, so workload is required FTE.
+    end
+    @subagent struct ClaimsManager
+        portfolio::Clientele # In principle: one portfolio, one claims manager.
+        capacity::Float64 # Basically FTE fraction, so workload is required FTE.
+    end
 end
