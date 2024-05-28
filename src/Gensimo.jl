@@ -12,7 +12,7 @@ export Client, reset_client, personalia, history, claim, segment,
        dates, date, states, nstates, state, dayzero,
        nids, τ, dτ, λ, age,
        events, nevents, services, nservices,
-       isactive, onscheme, workload
+       isactive, isonscheme, workload
 export Event, date, change, cost, labour
 export Personalia, name, age, sex
 export Segment, tier, label, division, branch, team, manager

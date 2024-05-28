@@ -121,7 +121,6 @@ clients(c::Conductor) = c.clients
 nclients(conductor::Conductor) = conductor |> clients |> length
 timeline(conductor::Conductor) = ( epoch(conductor):Day(1):eschaton(conductor)
                                    |> collect )
-isonscheme(client::Client, date::Date) = date >= dayzero(client)
 
 function Conductor( context::Context
                   , epoch::Date, eschaton::Date

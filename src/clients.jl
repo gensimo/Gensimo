@@ -326,6 +326,8 @@ function cost(client::Client; cumulative=false)
     return Vector{Date}(gdf.date), costs
 end
 
+isonscheme(client::Client, date::Date) = date >= dayzero(client)
+
 function Base.show(io::IO, client::Client)
     n = client |> nevents
     n < 10 ? n : n=10
