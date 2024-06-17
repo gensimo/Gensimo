@@ -34,4 +34,12 @@ export baseplot, gplot, datesplot,
        costseriesplot, costseriesplot_ensemble, costseriesplot_tiled,
        datesplots, clientplot, conductorplot, nactiveplot
 
+# Include and export essentials from insurers.jl.
+include("insurers.jl")
+export Clientele, InsuranceWorker, ClientAssistant, ClaimsManager
+
+# Include and export essentials from providers.jl.
+include("providers.jl")
+export Provider, services, asks, capacity, capacity!
+
 end # Module Gensimo.
