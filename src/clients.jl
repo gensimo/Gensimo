@@ -183,7 +183,7 @@ name(p::Personalia) = p.name
 age(p::Personalia) = p.age
 sex(p::Personalia) = p.sex
 
-@agent Client ContinuousAgent{2} begin
+@agent struct Client(ContinuousAgent{2, Float64})
     personalia::Personalia
     history::Vector{Tuple{Date, State}}
     claim::Claim

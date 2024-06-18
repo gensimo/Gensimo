@@ -42,4 +42,8 @@ export Clientele, InsuranceWorker, ClientAssistant, ClaimsManager
 include("providers.jl")
 export Provider, services, asks, capacity, capacity!
 
+# Include and export essentials from processes.jl.
+include("processes.jl")
+export initialise, simulate!
+
 end # Module Gensimo.

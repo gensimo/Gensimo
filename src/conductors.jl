@@ -161,6 +161,12 @@ function Conductor( context::Context
     end
 end
 
+function Conductor( epoch::Date, eschaton::Date
+                  , nclients::Integer=1
+                  ; cohort=:uniform )
+    return Conductor(Context(), epoch, eschaton, nclients, cohort=cohort)
+end
+
 function nactive(conductor::Conductor, date::Date; tier=:ignore)
     if tier==:ignore
         return sum([ isactive(client, date) for client in clients(conductor) ])
