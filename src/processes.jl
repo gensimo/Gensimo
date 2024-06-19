@@ -1,4 +1,4 @@
-using Agents
+using Agents, Random, Distributions
 
 function simulate!(conductor::Conductor)
     model = initialise(conductor)
@@ -46,4 +46,18 @@ end
 
 function model_step!(model)
     model.date += Day(1)
+end
+
+function walk(T::Int, x₀=1.0; u=1.09, d=1/1.11, p=.5, step=:multiplicative)
+    xs = [x₀]
+    for t in 1:T-1
+        if step == :multiplicative
+            push!(xs, xs[end] * (rand(Bernoulli(p)) ? u : d) )
+        elseif step == :additive
+            push!(xs, xs[end] + (rand(Bernoulli(p)) ? u : d) )
+        else
+            error("Unknown step option: ", step)
+        end
+    end
+    return xs
 end
