@@ -38,12 +38,6 @@ function nids(state::State)
     return heaviside.(.5 .- big6(state)) |> sum |> Integer
 end
 
-# function λ(state::State, mean=:harmonic)
-    # mean == :arithmetic && return big6(state) |> sum |> x->1/(x/6)
-    # mean == :geometric && return big6(state) |> prod |> x->1/(x^(1/6))
-    # mean == :harmonic && return map(x->1/x, big6(state)) |> sum |> x->1/(6/x)
-# end
-
 function λ(state::State, mean=:arithmetic)
     mean == :arithmetic && return state[1:2] |> sum |> x->1/(x/2) - 1
     mean == :geometric && return state[1:2] |> prod |> x->1/(x^(1/2)) - 1
@@ -250,6 +244,27 @@ function λ(mean=:arithmetic)
     end
 end
 
+function update_client!(client::Client, date::Date, state::State)
+    # Update client's actual state vector.
+    push!(client.history, (date, state))
+    # Update client's 'position' accordingly.
+    client.pos = state[1], state[2]
+end
+
+function update_client!(client::Client, date::Date, ϕ, ψ, σ=nothing)
+    # Use current σ if no new value provided.
+    isnothing(σ) ? σ = state(client)[end] : σ
+    # Update client's `State` vector at entries for ϕ, ψ and σ only.
+    s = State([ ϕ, ψ, state(client)[3:11]..., σ ])
+    # Do the updating.
+    update_client!(client, date, s)
+end
+
+function update_client!(client::Client, date::Date, λ)
+    # Just call `update_client!` with inferred ϕ and ψ.
+    update_client!(client, date, 1/(λ+1), 1/(λ+1))
+end
+
 function Client(id, pos, personalia, history, claim)
     s = history |> state
     return Client( id # Agent ID.
@@ -327,6 +342,15 @@ function cost(client::Client; cumulative=false)
 end
 
 isonscheme(client::Client, date::Date) = date >= dayzero(client)
+
+function nrequests(state::State, rng=nothing)
+    # If not provided, get the pseudo-randomness from device.
+    isnothing(rng) ? rng = RandomDevice() : rng
+    # Deliver.
+    return rand(rng, Poisson(λ(state)))
+end
+
+nrequests(client::Client, rng=nothing) = nrequests(client |> state, rng)
 
 function Base.show(io::IO, client::Client)
     n = client |> nevents

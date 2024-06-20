@@ -10,8 +10,9 @@ include("clients.jl")
 export Claim, events, services
 export Client, reset_client, personalia, history, claim, segment,
        dates, date, states, nstates, state, dayzero,
+       update_client!,
        nids, τ, dτ, λ, age,
-       events, nevents, services, nservices,
+       events, nevents, services, nservices, nrequests,
        isactive, isonscheme, workload
 export Event, date, change, cost, labour
 export Personalia, name, age, sex
@@ -25,7 +26,7 @@ export name, heaviside, n
 include("conductors.jl")
 export Conductor, clients, nclients, context, epoch, eschaton, timeline,
        nactive, nonscheme, statistics, workload, workload_average, cost,
-       cost_average, nrequests, request_cost
+       cost_average, request_cost
 export Context, distros, services, segments, states, probabilities
 
 # Include and export essentials from display.jl.
@@ -44,6 +45,6 @@ export Provider, services, asks, capacity, capacity!
 
 # Include and export essentials from processes.jl.
 include("processes.jl")
-export initialise, simulate!
+export initialise, simulate!, stap, walk, client_step!, agent_step!, model_step!
 
 end # Module Gensimo.

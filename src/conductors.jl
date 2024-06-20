@@ -17,43 +17,6 @@ function events(from_date, to_date, lambda)
     return sort(events)
 end
 
-# function n( t # Number of days passed.
-          # , λ # Initial hazard rate (mean #requests at previous date).
-          # , β # Decay rate of exponential decline of λ.
-          # , rng=nothing # Pseudo random number generator.
-          # )
-    # # If not provided, get the pseudo-randomness from device.
-    # isnothing(rng) ? rng = RandomDevice() : rng
-    # if t < 0
-        # return 0 # Only non-negative times are considered.
-    # else
-        # λ′ = λ * exp(-β*t) # Hazard rate declines exponentially.
-        # n = rand(rng, Poisson(λ′)) # Draw from current Poisson distribution.
-        # # Deliver.
-        # return n
-    # end
-# end
-
-# function nrequests( client::Client # The client, including health state(s).
-                  # , date::Date # For which the number of requests is requested.
-                  # , β=.01 # Decay rate, defaults to ~37% in 100 days.
-                  # , rng=nothing # Pseudo random number generator.
-                  # )
-    # # If not provided, get the pseudo-randomness from device.
-    # isnothing(rng) ? rng = RandomDevice() : rng
-    # # Deliver.
-    # return n(dτ(client, date), λ(client), β, rng)
-# end
-
-function nrequests(state::State, rng=nothing)
-    # If not provided, get the pseudo-randomness from device.
-    isnothing(rng) ? rng = RandomDevice() : rng
-    # Deliver.
-    return rand(rng, Poisson(λ(state)))
-end
-
-nrequests(client::Client, rng=nothing) = nrequests(client |> state, rng)
-
 function request_cost( client::Client # The client, including health state(s).
                      , date::Date # At which request is placed.
                      , β=.01 # Decay rate, defaults to ~37% in 100 days.

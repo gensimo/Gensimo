@@ -1,4 +1,5 @@
-using Agents, Random, Distributions
+using Agents
+using Dates, Random, Distributions
 
 function simulate!(conductor::Conductor)
     model = initialise(conductor)
@@ -41,6 +42,9 @@ function initialise( conductor::Conductor
 end
 
 function agent_step!(agent, model)
+    if agent isa Client
+        client_step!(agent, model)
+    end
     println(model.date)
 end
 
@@ -48,16 +52,54 @@ function model_step!(model)
     model.date += Day(1)
 end
 
-function walk(T::Int, x₀=1.0; u=1.09, d=1/1.11, p=.5, step=:multiplicative)
-    xs = [x₀]
-    for t in 1:T-1
+function client_step!(client::Client, model)
+    # Get the number of requests for today's hazard rate.
+    n = nrequests(client, model.rng)
+    # Write that number as an `Event` for testing.
+    client + Event(model.date, n)
+
+    # Each request spawns its own process.
+    for i in 1:n
+        # 1. Establish what is requested.
+        # 2. Identify the relevant liaisons (client, providers, insurers, ...)
+        # 3. Spawn process.
+    end
+
+    # ####
+    # TODO: Something not right here. Sometimes, hazard rate not updated.
+    # ####
+
+    # Update the client's hazard rate.
+    update_client!(client, model.date, stap(1, (client |> λ)))
+end
+
+function stap( nsteps=1::Int, x₀=1.0
+             ; u=1.09, d=1/1.11, p=.5, step=:multiplicative)
+    # Take the requested number of steps.
+    for t in 1:nsteps
         if step == :multiplicative
-            push!(xs, xs[end] * (rand(Bernoulli(p)) ? u : d) )
+            # Flip a coin and multiply with the up or down delta as appropriate.
+            x₀ *= rand(Bernoulli(p)) ? u : d
         elseif step == :additive
-            push!(xs, xs[end] + (rand(Bernoulli(p)) ? u : d) )
+            # Flip a coin and add the up or down delta as may be the case.
+            x₀ += rand(Bernoulli(p)) ? u : d
         else
-            error("Unknown step option: ", step)
+            error("Unknown delta option: ", step)
         end
     end
+    # Deliver.
+    return x₀
+end
+
+function walk( T::Int, x₀=1.0
+             ; u=1.09, d=1/1.11, p=.5, step=:multiplicative)
+    # Record where you start.
+    xs = [x₀]
+    # Take single `step`s up to T-1.
+    for t in 1:T-1
+        push!(xs, stap(1, xs[end]; u=u, d=d, p=p, step=step))
+    end
+    # Deliver.
     return xs
 end
+
