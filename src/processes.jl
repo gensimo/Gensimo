@@ -37,7 +37,7 @@ function initialise( conductor::Conductor
     for client in clients(conductor)
         add_agent!(client, model)
     end
-    # Add some providers TODO: This needs to be included in the conductor.
+    # Add providers. TODO: This needs to be included in the conductor.
     for p in 1:3
         menu = Dict("Allied Health Service" => 80.0 + randn(model.rng))
         capacity = 5 + rand(model.rng, -5:5)
@@ -58,14 +58,43 @@ function model_step!(model)
     model.date += Day(1)
 end
 
-function client_step!(client::Client, model)
+function client_step!(client::Client, model::AgentBasedModel)
     # Get the requests for today's hazard rate and deal with them sequentially.
     for request in requests(client)
-        # 1. Establish what is requested.
-        # 2. Identify the relevant liaisons (client, providers, insurers, ...)
-        # 3. Spawn process.
+        # Is the request for an allied health service?
+        if request == "Allied Health Service"
+            # Spawn the relevant process.
+            liaising_request!(client, model, request=request)
+        else
+            # Spawn the relevant process.
+            simple_request!(client, model, request=request)
+        end
     end
+end
 
+function simple_request!( client::Client, model::AgentBasedModel
+                        ; request )
+    # Write up the `Service` with a random cost.
+    cost = 50.0 + 50 * rand(model.rng)
+    service = Service(request, cost, 0.0, true)
+    # Make it an `Event`.
+    event = Event(model.date, service)
+    # Add the event to the client's `Claim`.
+    client + event
+    # Update the client's hazard rate.
+    update_client!(client, model.date, stap(1, (client |> λ)))
+end
+
+function liaising_request!( client::Client, model::AgentBasedModel
+                         ; request )
+    # Select a provider --- randomly, for now.
+    provider = random_agent(model, agent->typeof(agent)==Provider)
+    # Write up the `Service`.
+    service = Service(request, provider[request], 0.0, true)
+    # Make it an `Event`.
+    event = Event(model.date, service)
+    # Add the event to the client's `Claim`.
+    client + event
     # Update the client's hazard rate.
     update_client!(client, model.date, stap(1, (client |> λ)))
 end
