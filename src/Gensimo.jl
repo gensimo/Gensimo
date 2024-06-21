@@ -45,6 +45,8 @@ export Provider, services, asks, capacity, capacity!
 
 # Include and export essentials from processes.jl.
 include("processes.jl")
-export initialise, simulate!, stap, walk, client_step!, agent_step!, model_step!
+export initialise, simulate!,
+       client_step!, agent_step!, model_step!,
+       stap, walk, nrequests, requests
 
 end # Module Gensimo.

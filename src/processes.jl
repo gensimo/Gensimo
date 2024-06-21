@@ -28,7 +28,7 @@ function initialise( conductor::Conductor
                    , rng                    # Properties.rng
                    )
     # Set up the model.
-    model = StandardABM( Client
+    model = StandardABM( Union{Client, Provider}
                        ; properties = ps
                        , warn = false
                        , agent_step! = agent_step!
@@ -36,6 +36,12 @@ function initialise( conductor::Conductor
     # Add clients.
     for client in clients(conductor)
         add_agent!(client, model)
+    end
+    # Add some providers TODO: This needs to be included in the conductor.
+    for p in 1:3
+        menu = Dict("Allied Health Service" => 80.0 + randn(model.rng))
+        capacity = 5 + rand(model.rng, -5:5)
+        add_agent!( Provider, model; menu=menu, capacity=capacity)
     end
     # Deliver.
     return model
@@ -53,24 +59,32 @@ function model_step!(model)
 end
 
 function client_step!(client::Client, model)
-    # Get the number of requests for today's hazard rate.
-    n = nrequests(client, model.rng)
-    # Write that number as an `Event` for testing.
-    client + Event(model.date, n)
-
-    # Each request spawns its own process.
-    for i in 1:n
+    # Get the requests for today's hazard rate and deal with them sequentially.
+    for request in requests(client)
         # 1. Establish what is requested.
         # 2. Identify the relevant liaisons (client, providers, insurers, ...)
         # 3. Spawn process.
     end
 
-    # ####
-    # TODO: Something not right here. Sometimes, hazard rate not updated.
-    # ####
-
     # Update the client's hazard rate.
     update_client!(client, model.date, stap(1, (client |> λ)))
+end
+
+function requests(client::Client)
+    # Get the number of requests for today's hazard rate.
+    n = nrequests(client) # TODO: Needs model.rng for reproducibility.
+    # TODO: Bogus request list.
+    requests = []
+    for i in 1:n
+        if Bernoulli(.3) |> rand # Flip a weighted coin.
+            # Coin says: request for Allied Health service.
+            push!(requests, "Allied Health Service")
+        else
+            # Coin says: request for something else.
+            push!(requests, "General Service (not Allied Health)")
+        end
+    end
+    return requests
 end
 
 function stap( nsteps=1::Int, x₀=1.0

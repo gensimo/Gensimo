@@ -285,6 +285,9 @@ function Client(id, personalia, history, claim)
                  , claim )
 end
 
+Client(date::Date) = Client( Personalia()
+                           , [(date, State([.1, .1, rand(10)...]))]
+                           , Claim() )
 Client() = Client(Personalia(), [(Date(2020), State(rand(12)))], Claim())
 
 function ClientMaker(id=0)

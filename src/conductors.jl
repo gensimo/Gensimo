@@ -95,14 +95,22 @@ function Conductor( context::Context
     # Create random clients according to cohort setting.
     if cohort == :firstyear # All clients have day zero in first year.
         dates = epoch:Day(1):epoch+Year(1)
+        clients = [ Client( Personalia()
+                          , [ (dates |> rand, State(rand(12))) ]
+                          , Claim() ) for i ∈ 1:nclients ]
+    elseif cohort == :firstday
+        clients = [ Client(epoch) for i ∈ 1:nclients ]
     elseif cohort == :uniform # Clients have days zeros anywhere in timeline.
         dates = epoch:Day(1):eschaton
+        clients = [ Client( Personalia()
+                          , [ (dates |> rand, State(rand(12))) ]
+                          , Claim() ) for i ∈ 1:nclients ]
     else # Default to :uniform cohort setting.
         dates = epoch:Day(1):eschaton
+        clients = [ Client( Personalia()
+                          , [ (dates |> rand, State(rand(12))) ]
+                          , Claim() ) for i ∈ 1:nclients ]
     end
-    clients = [ Client( Personalia()
-                      , [ (dates |> rand, State(rand(12))) ]
-                      , Claim() ) for i ∈ 1:nclients ]
     # Instantiate and deliver the object.
     return Conductor( context
                     , epoch, eschaton

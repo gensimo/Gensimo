@@ -22,5 +22,9 @@ function capacity!(provider::Provider, capacity::Int64)
 end
 
 function Base.getindex(provider::Provider, service::String)
-    return provider.menu[service]
+    if service in provider.menu |> keys
+        return provider.menu[service]
+    else
+        return nothing
+    end
 end
