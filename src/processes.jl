@@ -31,8 +31,8 @@ function initialise( conductor::Conductor
     model = StandardABM( Union{Client, Provider}
                        ; properties = ps
                        , warn = false
-                       , agent_step! = agent_step!
-                       , model_step! = model_step! )
+                       , agent_step! = step_agent!
+                       , model_step! = step_model! )
     # Add clients.
     for client in clients(conductor)
         add_agent!(client, model)
@@ -47,32 +47,32 @@ function initialise( conductor::Conductor
     return model
 end
 
-function agent_step!(agent, model)
+function step_agent!(agent, model)
     if agent isa Client
-        client_step!(agent, model)
+        step_client!(agent, model)
     end
     println(model.date)
 end
 
-function model_step!(model)
+function step_model!(model)
     model.date += Day(1)
 end
 
-function client_step!(client::Client, model::AgentBasedModel)
+function step_client!(client::Client, model::AgentBasedModel)
     # Get the requests for today's hazard rate and deal with them sequentially.
     for request in requests(client)
         # Is the request for an allied health service?
         if request == "Allied Health Service"
             # Spawn the relevant process.
-            liaising_request!(client, model, request=request)
+            request_liaising!(client, model, request=request)
         else
             # Spawn the relevant process.
-            simple_request!(client, model, request=request)
+            request_simple!(client, model, request=request)
         end
     end
 end
 
-function simple_request!( client::Client, model::AgentBasedModel
+function request_simple!( client::Client, model::AgentBasedModel
                         ; request )
     # Write up the `Service` with a random cost.
     cost = 50.0 + 50 * rand(model.rng)
@@ -85,7 +85,7 @@ function simple_request!( client::Client, model::AgentBasedModel
     update_client!(client, model.date, stap(1, (client |> λ)))
 end
 
-function liaising_request!( client::Client, model::AgentBasedModel
+function request_liaising!( client::Client, model::AgentBasedModel
                          ; request )
     # Select a provider --- randomly, for now.
     provider = random_agent(model, agent->typeof(agent)==Provider)
