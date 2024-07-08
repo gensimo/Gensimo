@@ -70,6 +70,8 @@ function step_client!(client::Client, model::AgentBasedModel)
             request_simple!(client, model, request=request)
         end
     end
+    # Update the client's hazard rate.
+    update_client!(client, model.date, stap(1, (client |> λ)))
 end
 
 function request_simple!( client::Client, model::AgentBasedModel
@@ -81,8 +83,6 @@ function request_simple!( client::Client, model::AgentBasedModel
     event = Event(model.date, service)
     # Add the event to the client's `Claim`.
     client + event
-    # Update the client's hazard rate.
-    update_client!(client, model.date, stap(1, (client |> λ)))
 end
 
 function request_liaising!( client::Client, model::AgentBasedModel
@@ -95,8 +95,6 @@ function request_liaising!( client::Client, model::AgentBasedModel
     event = Event(model.date, service)
     # Add the event to the client's `Claim`.
     client + event
-    # Update the client's hazard rate.
-    update_client!(client, model.date, stap(1, (client |> λ)))
 end
 
 function requests(client::Client)

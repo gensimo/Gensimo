@@ -30,10 +30,10 @@ export Conductor, clients, nclients, context, epoch, eschaton, timeline,
 export Context, distros, services, segments, states, probabilities
 
 # Include and export essentials from display.jl.
-include("display.jl")
-export baseplot, gplot, datesplot,
-       costseriesplot, costseriesplot_ensemble, costseriesplot_tiled,
-       datesplots, clientplot, conductorplot, nactiveplot
+# include("display.jl")
+# export baseplot, gplot, datesplot,
+       # costseriesplot, costseriesplot_ensemble, costseriesplot_tiled,
+       # datesplots, clientplot, conductorplot, nactiveplot
 
 # Include and export essentials from insurers.jl.
 include("insurers.jl")
