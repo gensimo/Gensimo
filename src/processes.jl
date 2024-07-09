@@ -58,6 +58,35 @@ function step_model!(model)
     model.date += Day(1)
 end
 
+function _step_client!(client::Client, model::AgentBasedModel)
+    # Is client on-scheme yet?
+    if !isonscheme(client)
+        return # Client should not be on-scheme yet. Move to next day.
+    end
+    # Client is on-scheme. Is the client segmented?
+    if isnothing(client |> segment)
+        # TODO: Perform segmentation.
+    end
+    # Client is on-scheme and segmented. Process today's requests, if any.
+    for request in requests(client, model)
+        # TODO: events, feedback = process(client, model; request=request)
+    end
+    # Client's requests are processed. Add events to claim and use feedback.
+    for event in events # Adding events from processed requests, if any.
+        client + event
+    end
+    if feedback |> !isnothing # Make use of feedback, if any.
+        # Adjust the request timing and volume (hazard rate).
+        new_λ = stap( 1, λ(client)
+                    ; u = feedback.uptick
+                    , d = feedback.downtick
+                    , p = feedback.probability )
+        update_client!(client, model.date, new_λ)
+        # Adjust the probabilities for the kind of next service requested.
+        # TODO: Adjust the Markov Chain or distributions in the `Context`.
+    end
+end
+
 function step_client!(client::Client, model::AgentBasedModel)
     # Get the requests for today's hazard rate and deal with them sequentially.
     for request in requests(client)
@@ -97,7 +126,7 @@ function request_liaising!( client::Client, model::AgentBasedModel
     client + event
 end
 
-function requests(client::Client)
+function requests(client::Client, model::AgentBasedModel)
     # Get the number of requests for today's hazard rate.
     n = nrequests(client) # TODO: Needs model.rng for reproducibility.
     # TODO: Bogus request list.
