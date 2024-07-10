@@ -63,17 +63,18 @@ function _step_client!(client::Client, model::AgentBasedModel)
     if !isonscheme(client)
         return # Client should not be on-scheme yet. Move to next day.
     end
-    # Client is on-scheme. Is the client segmented?
-    if isnothing(client |> segment)
-        # TODO: Perform segmentation.
+    # Client is on-scheme. Has the client been onboarded?
+    if !isonboard(client)
+        # TODO: Perform onboarding. Severity assessment, segmentation, etc.
     end
-    # Client is on-scheme and segmented. Process today's requests, if any.
+    # Client is on-scheme and on-board. Process today's requests, if any.
     for request in requests(client, model)
         # TODO: events, feedback = process(client, model; request=request)
+        #
     end
     # Client's requests are processed. Add events to claim and use feedback.
     for event in events # Adding events from processed requests, if any.
-        client + event
+        client += event
     end
     if feedback |> !isnothing # Make use of feedback, if any.
         # Adjust the request timing and volume (hazard rate).

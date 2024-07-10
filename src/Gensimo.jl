@@ -7,17 +7,27 @@ export at
 
 # Include and export essentials from clients.jl.
 include("clients.jl")
-export Claim, events, services
-export Client, reset_client, personalia, history, claim, segment,
+export Claim,
+       events, services
+export Client,
+       reset_client, personalia, history, claim, segment,
        dates, date, states, nstates, state, dayzero,
        update_client!,
        nids, τ, dτ, λ, age,
        events, nevents, services, nservices, nrequests,
-       isactive, isonscheme, workload
-export Event, date, change, cost, labour
-export Personalia, name, age, sex
-export Segment, tier, label, division, branch, team, manager
-export Service, label, cost, labour, approved
+       isactive, isonscheme, issegmented, isonboard,
+       workload
+export Event,
+       date, change, cost, labour
+export Personalia,
+       name, age, sex
+export Segment,
+       tier, label, division, branch, team, manager
+export Package,
+       label, fromto, cover, plans
+       firstday, lastday, isactive, iscovered, coverleft, planned
+export Service,
+       label, cost, labour, approved
 export State,
        big6, nids, healthindex
 export name, heaviside, n

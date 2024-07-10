@@ -64,7 +64,6 @@ end
 tier(segment::Segment) = segment.tier
 label(segment::Segment) = segment.label
 
-
 #=
 
 struct Segment
@@ -80,6 +79,47 @@ team(p::Segment) = p.team
 manager(p::Segment) = p.manager
 
 =#
+
+struct Package
+    label::String # The name of the package.
+    fromto::Tuple{Date, Date} # First and last day the package is active.
+    cover::Dict{String, Real} # Label and number of services covered.
+    plans::Dict{String, Period} # Label and frequency of services covered.
+end
+
+label(package::Package) = package.label
+fromto(package::Package) = package.fromto
+cover(package::Package) = package.cover
+plans(package::Package) = package.plans
+firstday(package::Package) = package.fromto[1]
+lastday(package::Package) = package.fromto[2]
+isactive(package::Package, date::Date) = ( firstday(package)
+                                         <= date
+                                         <= lastday(package) )
+function iscovered(package::Package, service::String, date::Date)
+    # Service is in package, date in package lifetime and service not depleted.
+    return ( service ∈ cover(package) |> keys # Service in package at all?
+             && isactive(package, date)       # Date within life of package?
+             && cover(package)[service] > 0 ) # Not depleted yet?
+end
+iscovered(service::String, date::Date) = p -> iscovered(p, service, date)
+
+function coverleft(package::Package, service::String, date::Date)
+    # No. Package expired, not active yet or depleted.
+    if !iscovered(package, service, date)
+        return 0
+    else
+        return cover(package)[service]
+    end
+end
+coverleft(service::String, date::Date) = p -> coverleft(p, service, date)
+
+function planned(package::Package, date::Date)
+    # Return the list of services due today.
+    return [ key for key in package |> plans |> keys
+             if ((date-firstday(package)).value % Day(plans(package)[key]).value
+                 == 0) ]
+end
 
 struct Event
     date::Date # When did the change to the claim occur?
@@ -216,8 +256,9 @@ end
 dτ(client::Client, datum::Date) = datum - date(client) |> Dates.value
 dτ(date::Date) = client -> dτ(client, date)
 λ(client::Client, mean=:arithmetic) = λ(client |> state, mean)
-Base.:(+)(client::Client, event::Event) = ( client.claim += event
-                                          ; client )
+Base.:(+)(client::Client, event::Event) = ( c = Client(client)
+                                          ; c.claim += event
+                                          ; c )
 nservices(client::Client) = client |> services |> length
 nevents(client::Client) = client |> events |> length
 nstates(client::Client) = client |> states |> length
@@ -229,6 +270,8 @@ function segment(client::Client)
         return segevents[end] |> change
     end
 end
+issegmented(client::Client) = !isnothing(client |> segment)
+isonboard = issegmented # TODO: On-boarding may include more than segmentation.
 """NB: NIDS of a `Client` gives assesed NIDS != nids(client |> state)."""
 nids(client::Client) = [ event for event in events(client)
                          if change(event) isa Integer ][end] |> change
@@ -289,6 +332,8 @@ Client(date::Date) = Client( Personalia()
                            , [(date, State([.1, .1, rand(10)...]))]
                            , Claim() )
 Client() = Client(Personalia(), [(Date(2020), State(rand(12)))], Claim())
+
+Client(client::Client) = deepcopy(client)
 
 function ClientMaker(id=0)
     id -= 1 # So as to actually start at the current value of `id`.
