@@ -115,10 +115,40 @@ end
 coverleft(service::String, date::Date) = p -> coverleft(p, service, date)
 
 function planned(package::Package, date::Date)
-    # Return the list of services due today.
-    return [ key for key in package |> plans |> keys
-             if ((date-firstday(package)).value % Day(plans(package)[key]).value
-                 == 0) ]
+    # First check if the date is within the lifetime of the package.
+    if !isactive(package, date)
+        return String[]
+    # If so, return the list of services due today.
+    else
+        return [ key for key in package |> plans |> keys
+             if ( (date - firstday(package)).value
+                  % Day(plans(package)[key]).value
+                  == 0 ) ]
+    end
+end
+planned(date::Date) = p -> planned(p, date)
+
+function planleft(package::Package, service::String, date::Date)
+    # Prepare the list of dates.
+    dates = Date[]
+    # First check if the date is within the lifetime of the package.
+    if !isactive(package, date)
+        return dates
+    else
+        for day in date:lastday(package)
+            if ( (day - firstday(package)).value
+                 % Day(plans(package)[service]).value
+                 == 0 )
+                push!(dates, day)
+            end
+        end
+    end
+    return dates
+end
+
+function Base.in(service::String, package::Package)
+    return ( service ∈ package |> cover |> keys
+             || service ∈ package |> plans |> keys )
 end
 
 struct Event

@@ -25,7 +25,7 @@ export Segment,
        tier, label, division, branch, team, manager
 export Package,
        label, fromto, cover, plans
-       firstday, lastday, isactive, iscovered, coverleft, planned
+       firstday, lastday, isactive, iscovered, coverleft, planned, planleft
 export Service,
        label, cost, labour, approved
 export State,
