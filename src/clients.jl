@@ -84,7 +84,7 @@ struct Package
     label::String # The name of the package.
     fromto::Tuple{Date, Date} # First and last day the package is active.
     cover::Dict{String, Real} # Label and number of services covered.
-    plans::Dict{String, Period} # Label and frequency of services covered.
+    plans::Dict{String, Tuple{Date, Period}} # Label, 1st day and frequency.
 end
 
 label(package::Package) = package.label
@@ -114,37 +114,48 @@ function coverleft(package::Package, service::String, date::Date)
 end
 coverleft(service::String, date::Date) = p -> coverleft(p, service, date)
 
+function dates(package::Package, plan::String)
+    # Get the first date and the period of the service sequence.
+    date, period = plans(package)[plan]
+    # Prepare the list of `Date`s.
+    dates = Date[]
+    # Fill the list.
+    while date <= lastday(package)
+        push!(dates, date)
+        date += period
+    end
+    # Deliver.
+    return dates
+end
+
 function planned(package::Package, date::Date)
     # First check if the date is within the lifetime of the package.
     if !isactive(package, date)
         return String[]
     # If so, return the list of services due today.
     else
-        return [ key for key in package |> plans |> keys
-             if ( (date - firstday(package)).value
-                  % Day(plans(package)[key]).value
-                  == 0 ) ]
+        return [ plan for (plan, seq) in package |> plans
+                      if date in dates(package, plan) ]
     end
 end
 planned(date::Date) = p -> planned(p, date)
 
-function planleft(package::Package, service::String, date::Date)
-    # Prepare the list of dates.
-    dates = Date[]
-    # First check if the date is within the lifetime of the package.
-    if !isactive(package, date)
-        return dates
-    else
-        for day in date:lastday(package)
-            if ( (day - firstday(package)).value
-                 % Day(plans(package)[service]).value
-                 == 0 )
-                push!(dates, day)
-            end
+function planned(client::Client, date::Date)
+    plans = String[]
+    for package in packages(client)
+        for plan in planned(package, date)
+            push!(plans, plan)
         end
     end
-    return dates
+    return plans
 end
+planned(date::Date) = client -> planned(client, date)
+
+function planleft(package::Package, plan::String, date::Date)
+    return [ candidate for candidate in dates(package, plan)
+                       if candidate >= date ]
+end
+planleft(service::String, date::Date) = p -> planleft(p, service, date)
 
 function Base.in(service::String, package::Package)
     return ( service ∈ package |> cover |> keys
@@ -155,7 +166,8 @@ struct Event
     date::Date # When did the change to the claim occur?
     change::Union{ Integer # The assessment, e.g. NIDS.
                  , Segment
-                 , Service }
+                 , Service
+                 , Package }
 end
 
 date(e::Event) = e.date
@@ -175,6 +187,7 @@ function labour(event::Event)
     typeofchange == Service && return event |> change |> labour
     typeofchange == Segment && return 0.0
     typeofchange <: Integer && return 0.0
+    typeofchange == Package && return 0.0
 end
 
 struct Claim
@@ -188,6 +201,10 @@ Base.:(+)(c::Claim, e::Event) = Claim([c.events..., e])
 events(c::Claim) = c.events |> sort
 services(c::Claim) = [ change(event) for event in sort(events(c))
                        if typeof(change(event)) == Service ]
+packages(c::Claim) = [ change(event) for event in sort(events(c))
+                       if typeof(change(event)) == Package ]
+
+
 
 struct Personalia
     name::String
@@ -305,7 +322,7 @@ isonboard = issegmented # TODO: On-boarding may include more than segmentation.
 """NB: NIDS of a `Client` gives assesed NIDS != nids(client |> state)."""
 nids(client::Client) = [ event for event in events(client)
                          if change(event) isa Integer ][end] |> change
-
+packages(client::Client) = client |> claim |> packages
 function λ(mean=:arithmetic)
     function(x)
         if typeof(x) == Client
@@ -472,6 +489,11 @@ function Base.show(io::IO, event::Event)
              , change(event)
              )
     elseif typeof(change(event)) == Service
+        print( io
+             , "  ", date(event), " > service request", "\n"
+             , "  | ", change(event)
+             )
+    elseif typeof(change(event)) == Package
         print( io
              , "  ", date(event), " > service request", "\n"
              , "  | ", change(event)

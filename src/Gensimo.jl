@@ -14,7 +14,7 @@ export Client,
        dates, date, states, nstates, state, dayzero,
        update_client!,
        nids, τ, dτ, λ, age,
-       events, nevents, services, nservices, nrequests,
+       events, nevents, services, nservices, nrequests, packages
        isactive, isonscheme, issegmented, isonboard,
        workload
 export Event,
@@ -25,7 +25,8 @@ export Segment,
        tier, label, division, branch, team, manager
 export Package,
        label, fromto, cover, plans
-       firstday, lastday, isactive, iscovered, coverleft, planned, planleft
+       firstday, lastday, isactive, iscovered, coverleft,
+       planned, planleft, dates
 export Service,
        label, cost, labour, approved
 export State,

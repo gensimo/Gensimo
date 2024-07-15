@@ -59,18 +59,26 @@ function step_model!(model)
 end
 
 function _step_client!(client::Client, model::AgentBasedModel)
+    # Today's date as per the model's calendar.
+    date = model.date
     # Is client on-scheme yet?
-    if !isonscheme(client)
+    if !isonscheme(client, date) # TODO: New name necessary. `isapplying()`?
         return # Client should not be on-scheme yet. Move to next day.
     end
     # Client is on-scheme. Has the client been onboarded?
-    if !isonboard(client)
+    if !isonboard(client) # TODO: This ought to be called `onscheme()`.
         # TODO: Perform onboarding. Severity assessment, segmentation, etc.
+    end
+    # Any requests due today from a plan in the client's package?
+    plans = client |> planned(date)
+    for plan in plans
+        # TODO: events, feedback = process(client, model; plan=plan)
+        # TODO: Log events and do things with feedback.
     end
     # Client is on-scheme and on-board. Process today's requests, if any.
     for request in requests(client, model)
         # TODO: events, feedback = process(client, model; request=request)
-        #
+        # TODO: Log events and do things with feedback.
     end
     # Client's requests are processed. Add events to claim and use feedback.
     for event in events # Adding events from processed requests, if any.
