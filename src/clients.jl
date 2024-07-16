@@ -138,18 +138,6 @@ function planned(package::Package, date::Date)
                       if date in dates(package, plan) ]
     end
 end
-planned(date::Date) = p -> planned(p, date)
-
-function planned(client::Client, date::Date)
-    plans = String[]
-    for package in packages(client)
-        for plan in planned(package, date)
-            push!(plans, plan)
-        end
-    end
-    return plans
-end
-planned(date::Date) = client -> planned(client, date)
 
 function planleft(package::Package, plan::String, date::Date)
     return [ candidate for candidate in dates(package, plan)
@@ -303,9 +291,22 @@ end
 dτ(client::Client, datum::Date) = datum - date(client) |> Dates.value
 dτ(date::Date) = client -> dτ(client, date)
 λ(client::Client, mean=:arithmetic) = λ(client |> state, mean)
-Base.:(+)(client::Client, event::Event) = ( c = Client(client)
-                                          ; c.claim += event
-                                          ; c )
+
+function Base.push!(claim::Claim, event::Event)
+    push!(claim.events, event)
+end
+
+function Base.push!(client::Client, event::Event)
+    push!(client.claim.events, event)
+end
+
+# Base.:(+)(client::Client, event::Event) = ( c = Client(client)
+                                          # ; c.claim += event
+                                          # ; c )
+# function Base.:(+=)(client::Client, event::Event)
+    # claim = client |> claim
+    # claim += event
+# end
 nservices(client::Client) = client |> services |> length
 nevents(client::Client) = client |> events |> length
 nstates(client::Client) = client |> states |> length
@@ -323,6 +324,17 @@ isonboard = issegmented # TODO: On-boarding may include more than segmentation.
 nids(client::Client) = [ event for event in events(client)
                          if change(event) isa Integer ][end] |> change
 packages(client::Client) = client |> claim |> packages
+function planned(client::Client, date::Date)
+    plans = String[]
+    for package in packages(client)
+        for plan in planned(package, date)
+            push!(plans, plan)
+        end
+    end
+    return plans
+end
+planned(date::Date) = client -> planned(client, date)
+
 function λ(mean=:arithmetic)
     function(x)
         if typeof(x) == Client
