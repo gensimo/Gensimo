@@ -47,6 +47,16 @@ function initialise( conductor::Conductor
     return model
 end
 
+function clients(model::AgentBasedModel)
+    agents = model |> allagents |> collect |> values
+    return [ agent for agent in agents if typeof(agent) == Client ]
+end
+
+function providers(model::AgentBasedModel)
+    agents = model |> allagents |> collect |> values
+    return [ agent for agent in agents if typeof(agent) == Provider ]
+end
+
 function step_agent!(agent, model)
     if agent isa Client
         step_client!(agent, model)
@@ -98,7 +108,7 @@ end
 
 function step_client!(client::Client, model::AgentBasedModel)
     # Get the requests for today's hazard rate and deal with them sequentially.
-    for request in requests(client)
+    for request in requests(client, model)
         # Is the request for an allied health service?
         if request == "Allied Health Service"
             # Spawn the relevant process.
@@ -120,7 +130,7 @@ function request_simple!( client::Client, model::AgentBasedModel
     # Make it an `Event`.
     event = Event(model.date, service)
     # Add the event to the client's `Claim`.
-    client + event
+    push!(client, event)
 end
 
 function request_liaising!( client::Client, model::AgentBasedModel
@@ -132,7 +142,7 @@ function request_liaising!( client::Client, model::AgentBasedModel
     # Make it an `Event`.
     event = Event(model.date, service)
     # Add the event to the client's `Claim`.
-    client + event
+    push!(client, event)
 end
 
 function requests(client::Client, model::AgentBasedModel)
