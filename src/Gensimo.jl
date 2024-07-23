@@ -15,7 +15,7 @@ export Client,
        update_client!,
        nids, τ, dτ, λ, age,
        events, nevents, services, nservices, nrequests, packages
-       isactive, isonscheme, issegmented, isonboard,
+       isactive, isonscheme, issegmented,
        workload
 export Event,
        date, change, cost, labour

@@ -300,13 +300,6 @@ function Base.push!(client::Client, event::Event)
     push!(client.claim.events, event)
 end
 
-# Base.:(+)(client::Client, event::Event) = ( c = Client(client)
-                                          # ; c.claim += event
-                                          # ; c )
-# function Base.:(+=)(client::Client, event::Event)
-    # claim = client |> claim
-    # claim += event
-# end
 nservices(client::Client) = client |> services |> length
 nevents(client::Client) = client |> events |> length
 nstates(client::Client) = client |> states |> length
@@ -319,7 +312,8 @@ function segment(client::Client)
     end
 end
 issegmented(client::Client) = !isnothing(client |> segment)
-isonboard = issegmented # TODO: On-boarding may include more than segmentation.
+isonscheme = issegmented # TODO: On-scheme may include more than segmentation.
+
 """NB: NIDS of a `Client` gives assesed NIDS != nids(client |> state)."""
 nids(client::Client) = [ event for event in events(client)
                          if change(event) isa Integer ][end] |> change
@@ -447,8 +441,6 @@ function cost(client::Client; cumulative=false)
     costs = cumulative ? cumsum(gdf.cost_sum) : gdf.cost_sum
     return Vector{Date}(gdf.date), costs
 end
-
-isonscheme(client::Client, date::Date) = date >= dayzero(client)
 
 function nrequests(state::State, rng=nothing)
     # If not provided, get the pseudo-randomness from device.

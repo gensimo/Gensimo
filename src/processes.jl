@@ -16,7 +16,7 @@ mutable struct Properties
 end
 
 function initialise( conductor::Conductor
-                   , seed=nothing )
+                   , seed = nothing )
     # If no seed provided, get the pseudo-randomness from device.
     isnothing(seed) ? seed = rand(RandomDevice(), 0:2^16) : seed
     rng = Xoshiro(seed)
@@ -66,17 +66,18 @@ end
 
 function step_model!(model)
     model.date += Day(1)
+    # model.date = model.epoch + Day(model |> abmtime) + Day(1)
 end
 
 function _step_client!(client::Client, model::AgentBasedModel)
     # Today's date as per the model's calendar.
     date = model.date
-    # Is client on-scheme yet?
-    if !isonscheme(client, date) # TODO: New name necessary. `isapplying()`?
-        return # Client should not be on-scheme yet. Move to next day.
+    # Has this client's time come?
+    if τ(client, date) < 0
+        return # Client's time has not come yet. Move to next day.
     end
     # Client is on-scheme. Has the client been onboarded?
-    if !isonboard(client) # TODO: This ought to be called `onscheme()`.
+    if !isonscheme(client) # TODO: See `onscheme()` function.
         # TODO: Perform onboarding. Severity assessment, segmentation, etc.
     end
     # Any requests due today from a plan in the client's package?
@@ -104,6 +105,26 @@ function _step_client!(client::Client, model::AgentBasedModel)
         # Adjust the probabilities for the kind of next service requested.
         # TODO: Adjust the Markov Chain or distributions in the `Context`.
     end
+end
+
+function process( client, model
+                ; request = nothing # Processing either a request ...
+                , plan = nothing    # ... or a plan.
+                )
+    if request |> !isnothing
+        process_request(client, model, request)
+    end
+    if plan |> !isnothing
+        process_plan(client, model, request)
+    end
+end
+
+function process_request(client, model, request)
+    acceptance_probability = .8 # TODO: Obvs not hard code this.
+    if rand(model.rng, Bernoulli(acceptance_probability))
+    else
+    end
+    return events, feedback
 end
 
 function step_client!(client::Client, model::AgentBasedModel)
