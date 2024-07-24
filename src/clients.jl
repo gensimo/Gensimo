@@ -44,17 +44,17 @@ function λ(state::State, mean=:arithmetic)
     mean == :harmonic && return map(x->1/x, state[1:2]) |> sum |> x->1/(2/x) - 1
 end
 
-struct Service
-    label::String # Description of the service.
-    cost::Float64 # Monetary cost of the service in e.g. AUD.
-    labour::Float64 # Labour cost of the service in person-hours.
-    approved::Bool # Whether the service request is approved or denied.
+struct Request
+    label::String # Description of the request.
+    cost::Float64 # Monetary cost of the request in e.g. AUD.
+    labour::Float64 # Labour cost of the request in person-hours.
+    approved::Bool # Whether the request request is approved or denied.
 end
 
-label(s::Service) = s.label
-cost(s::Service) = s.cost
-labour(s::Service) = s.labour
-approved(s::Service) = s.approved
+label(request::Request) = request.label
+cost(request::Request) = request.cost
+labour(request::Request) = request.labour
+approved(request::Request) = request.approved
 
 struct Segment
     tier::Int64
@@ -103,6 +103,21 @@ function iscovered(package::Package, service::String, date::Date)
              && cover(package)[service] > 0 ) # Not depleted yet?
 end
 iscovered(service::String, date::Date) = p -> iscovered(p, service, date)
+
+function iscovered(client::Client, service::String, date::Date)
+    return [ iscovered(p, service, date) for p in packages(client) ] |> any
+end
+
+function coveredin( client::Client, service::String, date::Date
+                  ; allpackages=false # Return only last package by default.
+                  )
+    ps = [ p for p in packages(client) if iscovered(p, service, date) ]
+    if allpackages
+        return ps
+    else
+        return ps[end]
+    end
+end
 
 function coverleft(package::Package, service::String, date::Date)
     # No. Package expired, not active yet or depleted.
@@ -154,7 +169,7 @@ struct Event
     date::Date # When did the change to the claim occur?
     change::Union{ Integer # The assessment, e.g. NIDS.
                  , Segment
-                 , Service
+                 , Request
                  , Package }
 end
 
@@ -163,7 +178,7 @@ change(e::Event) = e.change
 Base.isless(e1::Event, e2::Event) = date(e1) < date(e2)
 
 function cost(event::Event)
-    if event |> change |> typeof == Service
+    if event |> change |> typeof == Request
         return event |> change |> cost
     else
         return 0.0
@@ -172,7 +187,7 @@ end
 
 function labour(event::Event)
     typeofchange = event |> change |> typeof
-    typeofchange == Service && return event |> change |> labour
+    typeofchange == Request && return event |> change |> labour
     typeofchange == Segment && return 0.0
     typeofchange <: Integer && return 0.0
     typeofchange == Package && return 0.0
@@ -187,8 +202,8 @@ Claim() = Claim(Vector{Event}())
 Base.:(+)(c::Claim, e::Event) = Claim([c.events..., e])
 
 events(c::Claim) = c.events |> sort
-services(c::Claim) = [ change(event) for event in sort(events(c))
-                       if typeof(change(event)) == Service ]
+requests(c::Claim) = [ change(event) for event in sort(events(c))
+                       if typeof(change(event)) == Request ]
 packages(c::Claim) = [ change(event) for event in sort(events(c))
                        if typeof(change(event)) == Package ]
 
@@ -276,7 +291,7 @@ states(client::Client) = client |> history |> states
 date(client::Client) = client |> history |> date
 state(client::Client) = client |> history |> state
 dayzero(client::Client) = dates(client)[1]
-services(client::Client) = client |> claim |> services
+requests(client::Client) = client |> claim |> requests
 events(client::Client) = client |> claim |> events
 function tier(client::Client)
     if isnothing(client |> segment)
@@ -300,7 +315,7 @@ function Base.push!(client::Client, event::Event)
     push!(client.claim.events, event)
 end
 
-nservices(client::Client) = client |> services |> length
+# nrequests(client::Client) = client |> requests |> length
 nevents(client::Client) = client |> events |> length
 nstates(client::Client) = client |> states |> length
 function segment(client::Client)
@@ -492,14 +507,14 @@ function Base.show(io::IO, event::Event)
              , "  ", date(event), " > segmentation", "\n"
              , change(event)
              )
-    elseif typeof(change(event)) == Service
+    elseif typeof(change(event)) == Request
         print( io
              , "  ", date(event), " > service request", "\n"
              , "  | ", change(event)
              )
     elseif typeof(change(event)) == Package
         print( io
-             , "  ", date(event), " > service request", "\n"
+             , "  ", date(event), " > package addition", "\n"
              , "  | ", change(event)
              )
     elseif typeof(change(event)) <: Integer
@@ -522,11 +537,11 @@ function Base.show(io::IO, segment::Segment)
          )
 end
 
-function Base.show(io::IO, service::Service)
-    print( io, "<", label(service), ">"
-         , " @ ", @sprintf "\$%.2f" cost(service)
-         , " + ", labour(service), " hours FTE equivalent."
-         , approved(service) ? " Approved." : " Denied."
+function Base.show(io::IO, request::Request)
+    print( io, "<", label(request), ">"
+         , " @ ", @sprintf "\$%.2f" cost(request)
+         , " + ", labour(request), " hours FTE equivalent."
+         , approved(request) ? " Approved." : " Denied."
          )
 end
 

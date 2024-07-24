@@ -7,44 +7,34 @@ function simulate!(conductor::Conductor)
          , length(model.epoch:Day(1):model.eschaton) - 1 ) # Up to eschaton.
 end
 
-mutable struct Properties
-    date::Date
-    epoch::Date
-    eschaton::Date
-    context::Context
-    rng
-end
-
 function initialise( conductor::Conductor
                    , seed = nothing )
     # If no seed provided, get the pseudo-randomness from device.
     isnothing(seed) ? seed = rand(RandomDevice(), 0:2^16) : seed
     rng = Xoshiro(seed)
-    # Prepare the Properties object.
-    ps = Properties( epoch(conductor)       # Properties.date
-                   , epoch(conductor)       # Properties.epoch
-                   , eschaton(conductor)    # Properties.eschaton
-                   , context(conductor)     # Properties.context
-                   , rng                    # Properties.rng
-                   )
     # Set up the model.
     model = StandardABM( Union{Client, Provider}
-                       ; properties = ps
+                       ; properties = conductor
                        , warn = false
                        , agent_step! = step_agent!
-                       , model_step! = step_model! )
+                       , model_step! = step_model!
+                       , rng )
     # Add clients.
     for client in clients(conductor)
         add_agent!(client, model)
     end
     # Add providers. TODO: This needs to be included in the conductor.
     for p in 1:3
-        menu = Dict("Allied Health Service" => 80.0 + randn(model.rng))
-        capacity = 5 + rand(model.rng, -5:5)
+        menu = Dict("Allied Health Service" => 80.0 + randn(abmrng(model)))
+        capacity = 5 + rand(abmrng(model), -5:5)
         add_agent!( Provider, model; menu=menu, capacity=capacity)
     end
     # Deliver.
     return model
+end
+
+function date(model::AgentBasedModel)
+    return model.epoch + Day(abmtime(model))
 end
 
 function clients(model::AgentBasedModel)
@@ -61,17 +51,14 @@ function step_agent!(agent, model)
     if agent isa Client
         step_client!(agent, model)
     end
-    println(model.date)
+    println(date(model))
 end
 
-function step_model!(model)
-    model.date += Day(1)
-    # model.date = model.epoch + Day(model |> abmtime) + Day(1)
-end
+function step_model!(model) end
 
 function _step_client!(client::Client, model::AgentBasedModel)
     # Today's date as per the model's calendar.
-    date = model.date
+    date = date(model)
     # Has this client's time come?
     if τ(client, date) < 0
         return # Client's time has not come yet. Move to next day.
@@ -87,8 +74,8 @@ function _step_client!(client::Client, model::AgentBasedModel)
         # TODO: Log events and do things with feedback.
     end
     # Client is on-scheme and on-board. Process today's requests, if any.
-    for request in requests(client, model)
-        # TODO: events, feedback = process(client, model; request=request)
+    for service in requests(client, model)
+        # TODO: event, feedback = process(client, model; request=service)
         # TODO: Log events and do things with feedback.
     end
     # Client's requests are processed. Add events to claim and use feedback.
@@ -101,7 +88,7 @@ function _step_client!(client::Client, model::AgentBasedModel)
                     ; u = feedback.uptick
                     , d = feedback.downtick
                     , p = feedback.probability )
-        update_client!(client, model.date, new_λ)
+        update_client!(client, date(model), new_λ)
         # Adjust the probabilities for the kind of next service requested.
         # TODO: Adjust the Markov Chain or distributions in the `Context`.
     end
@@ -112,19 +99,42 @@ function process( client, model
                 , plan = nothing    # ... or a plan.
                 )
     if request |> !isnothing
-        process_request(client, model, request)
+        return process_request(client, model, request) # -> (event, feedback)
     end
     if plan |> !isnothing
-        process_plan(client, model, request)
+        return process_plan(client, model, request) # -> (event, feedback)
     end
 end
 
-function process_request(client, model, request)
-    acceptance_probability = .8 # TODO: Obvs not hard code this.
-    if rand(model.rng, Bernoulli(acceptance_probability))
-    else
+function process_request(client::Client, model::AgentBasedModel; request)
+    if iscovered(client, request, date(model))
+        return process_cover(client, model, request)
     end
+
+    acceptance_probability = .8 # TODO: Obvs not hard code, make model prop.
+
+    cost = 50.0 + 50 * rand(abmrng(model))
+    if rand(abmrng(model), Bernoulli(acceptance_probability))
+        request = Request(request, cost, 0.0, true) # Request approved.
+    else
+        request = Request(request, cost, 0.0, false) # Request denied.
+    end
+    event = Event(date(model), request)
     return events, feedback
+end
+
+function process_cover(client::Client, model::AgentBasedModel; request)
+    # Find the package with the cover for this service request.
+    p = coveredin(client, request, date(model), allpackages=false)
+    # Decrement the cover by one unit.
+    cover(p)[request] -= 1
+    # Return an `Event` with zero cost.
+    return Event(date(model), Request(request, 0.0, 0.0, true))
+end
+
+function process_plan(client::Client, model::AgentBasedModel; request)
+    # All there is to do is return an `Event` with zero cost.
+    return Event(date(model), Request(request, 0.0, 0.0, true))
 end
 
 function step_client!(client::Client, model::AgentBasedModel)
@@ -140,35 +150,35 @@ function step_client!(client::Client, model::AgentBasedModel)
         end
     end
     # Update the client's hazard rate.
-    update_client!(client, model.date, stap(1, (client |> λ)))
+    update_client!(client, date(model), stap(1, (client |> λ)))
 end
 
 function request_simple!( client::Client, model::AgentBasedModel
                         ; request )
-    # Write up the `Service` with a random cost.
-    cost = 50.0 + 50 * rand(model.rng)
-    service = Service(request, cost, 0.0, true)
+    # Write up the `Request` with a random cost.
+    cost = 50.0 + 50 * rand(abmrng(model))
+    request = Request(request, cost, 0.0, true)
     # Make it an `Event`.
-    event = Event(model.date, service)
+    event = Event(date(model), request)
     # Add the event to the client's `Claim`.
     push!(client, event)
 end
 
 function request_liaising!( client::Client, model::AgentBasedModel
-                         ; request )
+                          ; request )
     # Select a provider --- randomly, for now.
     provider = random_agent(model, agent->typeof(agent)==Provider)
-    # Write up the `Service`.
-    service = Service(request, provider[request], 0.0, true)
+    # Write up the `Request`.
+    request = Request(request, provider[request], 0.0, true)
     # Make it an `Event`.
-    event = Event(model.date, service)
+    event = Event(date(model), request)
     # Add the event to the client's `Claim`.
     push!(client, event)
 end
 
 function requests(client::Client, model::AgentBasedModel)
     # Get the number of requests for today's hazard rate.
-    n = nrequests(client) # TODO: Needs model.rng for reproducibility.
+    n = nrequests(client, abmrng(model))
     # TODO: Bogus request list.
     requests = []
     for i in 1:n
