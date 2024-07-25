@@ -258,6 +258,7 @@ sex(p::Personalia) = p.sex
     claim::Claim
 end
 
+
 # Make working with history-field easy.
 Base.isless(h1::Tuple{Date, State}, h2::Tuple{Date, State}) = h1[1] < h2[1]
 dates(history::Vector{Tuple{Date, State}}) = map(t->t[1], history |> sort)
