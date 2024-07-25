@@ -104,21 +104,6 @@ function iscovered(package::Package, service::String, date::Date)
 end
 iscovered(service::String, date::Date) = p -> iscovered(p, service, date)
 
-function iscovered(client::Client, service::String, date::Date)
-    return [ iscovered(p, service, date) for p in packages(client) ] |> any
-end
-
-function coveredin( client::Client, service::String, date::Date
-                  ; allpackages=false # Return only last package by default.
-                  )
-    ps = [ p for p in packages(client) if iscovered(p, service, date) ]
-    if allpackages
-        return ps
-    else
-        return ps[end]
-    end
-end
-
 function coverleft(package::Package, service::String, date::Date)
     # No. Package expired, not active yet or depleted.
     if !iscovered(package, service, date)
@@ -343,6 +328,22 @@ function planned(client::Client, date::Date)
     return plans
 end
 planned(date::Date) = client -> planned(client, date)
+
+function iscovered(client::Client, service::String, date::Date)
+    return [ iscovered(p, service, date) for p in packages(client) ] |> any
+end
+
+function coveredin( client::Client, service::String, date::Date
+                  ; allpackages=false # Return only last package by default.
+                  )
+    ps = [ p for p in packages(client) if iscovered(p, service, date) ]
+    if allpackages
+        return ps
+    else
+        return ps[end]
+    end
+end
+
 
 function λ(mean=:arithmetic)
     function(x)
