@@ -1,4 +1,5 @@
-using GraphMakie, Graphs, Dates
+using GraphMakie, Graphs, Dates, Agents
+using Statistics: mean
 
 # Black magic to import GLMakie except for `events()`.
 import GLMakie
@@ -423,4 +424,25 @@ function conductorplot(conductor::Conductor)
                                  , nothing
                                  , nothing ]
                      , linked=collect(1:4) )
+end
+
+function dashboard(model::AgentBasedModel)
+    # To make heatmaps.
+    function heatmap(model)
+        heat = nactive(model)
+        return [ heat heat
+               ; heat heat ]
+    end
+    # Pass the relevant options to the `abmplot()` function.
+    fig, abmobs = abmexploration( model
+                                    ; add_controls = true
+                                    , heatarray = heatmap
+                                    , heatkwargs = ( colorrange = (0, 100)
+                                                   , colormap = :thermal )
+                                    , mdata = [ nevents ]
+                                    , mlabels = [ "# events (total)" ] )
+    # Show me what you got.
+    display(fig)
+    # Deliver.
+    return fig, abmobs
 end

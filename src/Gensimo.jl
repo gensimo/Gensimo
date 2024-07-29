@@ -44,7 +44,8 @@ export Context, distros, requests, segments, states, probabilities
 include("display.jl")
 export baseplot, gplot, datesplot,
        costseriesplot, costseriesplot_ensemble, costseriesplot_tiled,
-       datesplots, clientplot, conductorplot, nactiveplot
+       datesplots, clientplot, conductorplot, nactiveplot,
+       dashboard
 
 # Include and export essentials from insurers.jl.
 include("insurers.jl")
@@ -58,7 +59,7 @@ export Provider, services, asks, capacity, capacity!
 include("processes.jl")
 export initialise, simulate!,
        client_step!, agent_step!, model_step!,
-       stap, walk, nrequests, requests
+       stap, walk, nrequests, requests, nevents
 # Export everything this module defines up to here.
 for n in names(@__MODULE__; all=true)
     if Base.isidentifier(n) && n ∉ (Symbol(@__MODULE__), :eval, :include)

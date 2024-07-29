@@ -47,6 +47,35 @@ function providers(model::AgentBasedModel)
     return [ agent for agent in agents if typeof(agent) == Provider ]
 end
 
+function nevents(model::AgentBasedModel; cumulative=false)
+    clientele = clients(model)
+    datum = date(model)
+    if cumulative
+        eventcount = 0
+        for client in clientele
+            for event in events(client)
+                if date(event) <= datum # Count all events before the datum.
+                    eventcount += 1
+                end
+            end
+        end
+    else
+        eventcount = 0
+        for client in clientele
+            for event in events(client)
+                if date(event) == datum # Count only events on the datum.
+                    eventcount += 1
+                end
+            end
+        end
+    end
+    # Deliver.
+    return eventcount
+end
+
+
+
+
 function step_agent!(agent, model)
     if agent isa Client
         step_client!(agent, model)
