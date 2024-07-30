@@ -49,20 +49,16 @@ end
 
 function nevents(model::AgentBasedModel; cumulative=false)
     clientele = clients(model)
-    datum = date(model)
-    if cumulative
-        eventcount = 0
-        for client in clientele
-            for event in events(client)
+    datum = date(model) - Day(1)
+    # Count events for each client.
+    eventcount = 0
+    for client in clientele
+        for event in events(client)
+            if cumulative
                 if date(event) <= datum # Count all events before the datum.
                     eventcount += 1
                 end
-            end
-        end
-    else
-        eventcount = 0
-        for client in clientele
-            for event in events(client)
+            else
                 if date(event) == datum # Count only events on the datum.
                     eventcount += 1
                 end
@@ -73,8 +69,27 @@ function nevents(model::AgentBasedModel; cumulative=false)
     return eventcount
 end
 
-
-
+function cost(model::AgentBasedModel; cumulative=false, integer=true)
+    clientele = clients(model)
+    datum = date(model) - Day(1)
+    # Count events for each client.
+    totalcost = 0
+    for client in clientele
+        for event in events(client)
+            if cumulative
+                if date(event) <= datum # Count all events before the datum.
+                    totalcost += cost(event)
+                end
+            else
+                if date(event) == datum # Count only events on the datum.
+                    totalcost += cost(event)
+                end
+            end
+        end
+    end
+    # Deliver.
+    return integer ? round(Integer, totalcost) : totalcost
+end
 
 function step_agent!(agent, model)
     if agent isa Client

@@ -433,14 +433,18 @@ function dashboard(model::AgentBasedModel)
         return [ heat heat
                ; heat heat ]
     end
+    cumcost(model) = cost(model; cumulative=true)
     # Pass the relevant options to the `abmplot()` function.
     fig, abmobs = abmexploration( model
-                                    ; add_controls = true
-                                    , heatarray = heatmap
-                                    , heatkwargs = ( colorrange = (0, 100)
-                                                   , colormap = :thermal )
-                                    , mdata = [ nevents ]
-                                    , mlabels = [ "# events (total)" ] )
+                                ; add_controls = true
+                                , heatarray = heatmap
+                                , heatkwargs = ( colorrange = (0, 100)
+                                               , colormap = :thermal )
+                                , mdata = [ nevents, cost, cumcost ]
+                                , mlabels = [ "events [ # ]"
+                                            , "cost (incoming) [ \$ ]"
+                                            , "cost (cumulative) [ \$ ]" ]
+                                )
     # Show me what you got.
     display(fig)
     # Deliver.
