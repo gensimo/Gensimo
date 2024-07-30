@@ -377,20 +377,20 @@ function update_client!(client::Client, date::Date, λ)
     update_client!(client, date, 1/(λ+1), 1/(λ+1))
 end
 
-function Client(id, pos, personalia, history, claim)
-    s = history |> state
-    return Client( id # Agent ID.
-                 , (s[1], s[2]) # 2D (ϕ, ψ) 'location' vector.
-                 , (0.0, 0.0) # Dummy 'velocity' vector.
-                 , personalia
-                 , history
-                 , claim )
-end
+# function Client(id, pos, personalia, history, claim)
+    # s = history |> state
+    # return Client( id # Agent ID.
+                 # , (s[1], s[2]) # 2D (ϕ, ψ) 'location' vector.
+                 # , (0.0, 0.0) # Dummy 'velocity' vector.
+                 # , personalia
+                 # , history
+                 # , claim )
+# end
 
 function Client(id, personalia, history, claim)
     s = history |> state
     return Client( id # Agent ID.
-                 , (s[1], s[2]) # 2D (ϕ, ψ) 'location' vector.
+                 , (0.0, 0.0) # (s[1], s[2]) # 2D (ϕ, ψ) 'location' vector.
                  , (0.0, 0.0) # Dummy 'velocity' vector.
                  , personalia
                  , history

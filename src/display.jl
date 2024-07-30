@@ -434,9 +434,12 @@ function dashboard(model::AgentBasedModel)
                ; heat heat ]
     end
     cumcost(model) = cost(model; cumulative=true)
+    agent_marker(agent) = isactive(agent, date(model)-Day(1)) ? '□' : '*'
     # Pass the relevant options to the `abmplot()` function.
     fig, abmobs = abmexploration( model
                                 ; add_controls = true
+                                , adjust_aspect = false
+                                , agent_marker, agent_size=25
                                 , heatarray = heatmap
                                 , heatkwargs = ( colorrange = (0, 100)
                                                , colormap = :thermal )
