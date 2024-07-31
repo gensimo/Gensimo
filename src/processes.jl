@@ -12,8 +12,13 @@ function initialise( conductor::Conductor
     # If no seed provided, get the pseudo-randomness from device.
     isnothing(seed) ? seed = rand(RandomDevice(), 0:2^16) : seed
     rng = Xoshiro(seed)
+    # Create a 'continuous' space.
+    dimensions = ( conductor |> timeline |> length |> float # For days>dayzero.
+                 , 10000.0                                  # For $.
+                 )
+    space = ContinuousSpace(dimensions, spacing=1.0, periodic=false)
     # Set up the model.
-    model = StandardABM( Union{Client, Provider}
+    model = StandardABM( Union{Client, Provider}, space
                        ; properties = conductor
                        , warn = false
                        , agent_step! = step_agent!
@@ -21,13 +26,14 @@ function initialise( conductor::Conductor
                        , rng )
     # Add clients.
     for client in clients(conductor)
-        add_agent!(client, model)
+        add_agent_own_pos!(client, model)
     end
     # Add providers. TODO: This needs to be included in the conductor.
     for p in 1:3
         menu = Dict("Allied Health Service" => 80.0 + randn(abmrng(model)))
         capacity = 5 + rand(abmrng(model), -5:5)
-        add_agent!( Provider, model; menu=menu, capacity=capacity)
+        add_agent!( Provider, model
+                  ; vel=(0.0, 0.0), menu=menu, capacity=capacity )
     end
     # Deliver.
     return model
@@ -69,33 +75,52 @@ function nevents(model::AgentBasedModel; cumulative=false)
     return eventcount
 end
 
-function cost(model::AgentBasedModel; cumulative=false, integer=true)
+function nactive(model::AgentBasedModel)
+    agents = model |> allagents |> collect |> values
+    clients = [ agent for agent in agents if typeof(agent) == Client ]
+    return sum([ isactive(client, date(model)) for client in clients ])
+end
+
+function cost(client::Client, model::AgentBasedModel; cumulative=false)
+    datum = date(model) - Day(1)
+    totalcost = 0
+    for event in events(client)
+        if cumulative
+            if date(event) <= datum # Count all events before the datum.
+                totalcost += cost(event)
+            end
+        else
+            if date(event) == datum # Count only events on the datum.
+                totalcost += cost(event)
+            end
+        end
+    end
+    # Deliver.
+    return totalcost
+end
+
+function cost(model::AgentBasedModel; cumulative=false)
     clientele = clients(model)
     datum = date(model) - Day(1)
     # Count events for each client.
     totalcost = 0
     for client in clientele
-        for event in events(client)
-            if cumulative
-                if date(event) <= datum # Count all events before the datum.
-                    totalcost += cost(event)
-                end
-            else
-                if date(event) == datum # Count only events on the datum.
-                    totalcost += cost(event)
-                end
-            end
-        end
+        totalcost += cost(client, model; cumulative=cumulative)
     end
     # Deliver.
-    return integer ? round(Integer, totalcost) : totalcost
+    return totalcost
+end
+
+function position(client::Client, model::AgentBasedModel)
+    days = (date(client) - dayzero(client)).value |> float
+    geld = minimum([cost(client, model; cumulative=true), 10000.0])
+    return (days, geld)
 end
 
 function step_agent!(agent, model)
     if agent isa Client
         step_client!(agent, model)
     end
-    println(date(model))
 end
 
 function step_model!(model) end
@@ -194,6 +219,7 @@ function step_client!(client::Client, model::AgentBasedModel)
         end
     end
     # Update the client's hazard rate.
+    move_agent!(client, position(client, model), model)
     update_client!(client, date(model), stap(1, (client |> λ)))
 end
 

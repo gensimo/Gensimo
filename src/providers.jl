@@ -1,6 +1,6 @@
 using Agents
 
-@agent struct Provider(NoSpaceAgent)
+@agent struct Provider(ContinuousAgent{2, Float64})
     menu::Dict{String, Float64} # Service on offer => ask price
     capacity::Int64 # Remaining capacity --- how many services still on offer.
 end

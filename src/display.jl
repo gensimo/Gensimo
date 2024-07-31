@@ -434,7 +434,14 @@ function dashboard(model::AgentBasedModel)
                ; heat heat ]
     end
     cumcost(model) = cost(model; cumulative=true)
-    agent_marker(agent) = isactive(agent, date(model)-Day(1)) ? '□' : '*'
+    function agent_marker(agent)
+        if typeof(agent) == Provider
+            return '⋄'
+        end
+        if typeof(agent) == Client
+            return isactive(agent, date(model)-Day(1)) ? '□' : '*'
+        end
+    end
     # Pass the relevant options to the `abmplot()` function.
     fig, abmobs = abmexploration( model
                                 ; add_controls = true

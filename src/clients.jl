@@ -253,10 +253,16 @@ age(p::Personalia) = p.age
 sex(p::Personalia) = p.sex
 
 @agent struct Client(ContinuousAgent{2, Float64})
-    personalia::Personalia
-    history::Vector{Tuple{Date, State}}
-    claim::Claim
+    personalia::Personalia = Personalia()
+    history::Vector{Tuple{Date, State}} = [(Date(2020), State(rand(12)))]
+    claim::Claim = Claim()
 end
+
+Client(client::Client) = deepcopy(client)
+Client( personalia::Personalia = Personalia()
+      , history::Vector{Tuple{Date, State}} = [(Date(2020), State(rand(12)))]
+      , claim::Claim = Claim()
+      ) = Client(; id=1, pos=(.0, .0), vel=(.0, .0), personalia, history, claim)
 
 # Make working with history-field easy.
 Base.isless(h1::Tuple{Date, State}, h2::Tuple{Date, State}) = h1[1] < h2[1]
@@ -269,6 +275,7 @@ state(history::Vector{Tuple{Date, State}}) = states(history)[end]
 personalia(client::Client) = client.personalia
 history(client::Client) = client.history
 claim(client::Client) = client.claim
+
 # Assorted derivative accessors.
 age(client::Client) = client |> personalia |> age
 dates(client::Client) = client |> history |> dates
@@ -278,27 +285,16 @@ state(client::Client) = client |> history |> state
 dayzero(client::Client) = dates(client)[1]
 requests(client::Client) = client |> claim |> requests
 events(client::Client) = client |> claim |> events
-function tier(client::Client)
-    if isnothing(client |> segment)
-        return nothing
-    else
-        return client |> segment |> tier
-    end
-end
+tier(client::Client) = issegmented(client) ? tier(segment(client)) : nothing
+
 # Other utility functions.
 τ(client::Client, date::Date) = date - dayzero(client) |> Dates.value
 τ(date::Date) = client -> τ(client, date)
 dτ(client::Client, datum::Date) = datum - date(client) |> Dates.value
 dτ(date::Date) = client -> dτ(client, date)
 λ(client::Client, mean=:arithmetic) = λ(client |> state, mean)
-
-function Base.push!(claim::Claim, event::Event)
-    push!(claim.events, event)
-end
-
-function Base.push!(client::Client, event::Event)
-    push!(client.claim.events, event)
-end
+Base.push!(claim::Claim, event::Event) = push!(claim.events, event)
+Base.push!(client::Client, event::Event) = push!(client.claim.events, event)
 
 # nrequests(client::Client) = client |> requests |> length
 nevents(client::Client) = client |> events |> length
@@ -360,7 +356,7 @@ function update_client!(client::Client, date::Date, state::State)
     # Update client's actual state vector.
     push!(client.history, (date, state))
     # Update client's 'position' accordingly.
-    client.pos = state[1], state[2]
+    # client.pos = state[1], state[2]
 end
 
 function update_client!(client::Client, date::Date, ϕ, ψ, σ=nothing)
@@ -387,46 +383,45 @@ end
                  # , claim )
 # end
 
-function Client(id, personalia, history, claim)
-    s = history |> state
-    return Client( id # Agent ID.
-                 , (0.0, 0.0) # (s[1], s[2]) # 2D (ϕ, ψ) 'location' vector.
-                 , (0.0, 0.0) # Dummy 'velocity' vector.
-                 , personalia
-                 , history
-                 , claim )
-end
+# function Client(id, personalia, history, claim)
+    # s = history |> state
+    # return Client( id # Agent ID.
+                 # , (0.0, 0.0) # (s[1], s[2]) # 2D (ϕ, ψ) 'location' vector.
+                 # , (0.0, 0.0) # Dummy 'velocity' vector.
+                 # , personalia
+                 # , history
+                 # , claim )
+# end
 
-Client(date::Date) = Client( Personalia()
-                           , [(date, State([.1, .1, rand(10)...]))]
-                           , Claim() )
-Client() = Client(Personalia(), [(Date(2020), State(rand(12)))], Claim())
+# Client(date::Date) = Client( Personalia()
+                           # , [(date, State([.1, .1, rand(10)...]))]
+                           # , Claim() )
+# Client() = Client(Personalia(), [(Date(2020), State(rand(12)))], Claim())
 
-Client(client::Client) = deepcopy(client)
 
-function ClientMaker(id=0)
-    id -= 1 # So as to actually start at the current value of `id`.
-    function C(personalia, history, claim)
-        id += 1
-        return Client(id, personalia, history, claim)
-    end
-end
+# function ClientMaker(id=0)
+    # id -= 1 # So as to actually start at the current value of `id`.
+    # function C(personalia, history, claim)
+        # id += 1
+        # return Client(id, personalia, history, claim)
+    # end
+# end
 
-let
-    start_id = 0
-    global function Client(personalia, history, claim; id=nothing)
-        isnothing(id) ? start_id += 1 : start_id = id
-        return Client(start_id, personalia, history, claim)
-    end
-end
+# let
+    # start_id = 0
+    # global function Client(personalia, history, claim; id=nothing)
+        # isnothing(id) ? start_id += 1 : start_id = id
+        # return Client(start_id, personalia, history, claim)
+    # end
+# end
 
-function reset_client()
-    Client( Personalia()
-          , [ (Date(2020), State(rand(12))) ]
-          , Claim()
-          ; id=0 )
-    return nothing
-end
+# function reset_client()
+    # Client( Personalia()
+          # , [ (Date(2020), State(rand(12))) ]
+          # , Claim()
+          # ; id=0 )
+    # return nothing
+# end
 
 function isactive(client::Client, refdate::Date)
     if isempty(client |> events)

@@ -60,7 +60,7 @@ include("processes.jl")
 export initialise, simulate!,
        client_step!, agent_step!, model_step!,
        stap, walk, nrequests, requests,
-       nevents, cost
+       nevents, cost, nactive
 # Export everything this module defines up to here.
 for n in names(@__MODULE__; all=true)
     if Base.isidentifier(n) && n ∉ (Symbol(@__MODULE__), :eval, :include)
