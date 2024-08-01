@@ -433,7 +433,8 @@ function dashboard(model::AgentBasedModel)
         return [ heat heat
                ; heat heat ]
     end
-    cumcost(model) = cost(model; cumulative=true)
+    cumcost(model) = round(Integer, cost(model; cumulative=true))
+    intcost(model) = round(Integer, cost(model))
     function agent_marker(agent)
         if typeof(agent) == Provider
             return '⋄'
@@ -450,7 +451,7 @@ function dashboard(model::AgentBasedModel)
                                 , heatarray = heatmap
                                 , heatkwargs = ( colorrange = (0, 100)
                                                , colormap = :thermal )
-                                , mdata = [ nevents, cost, cumcost ]
+                                , mdata = [ nevents, intcost, cumcost ]
                                 , mlabels = [ "events [ # ]"
                                             , "cost (incoming) [ \$ ]"
                                             , "cost (cumulative) [ \$ ]" ]
