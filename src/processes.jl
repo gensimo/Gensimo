@@ -111,6 +111,12 @@ function cost(model::AgentBasedModel; cumulative=false)
     return totalcost
 end
 
+function workload(model::AgentBasedModel; cumulative=false)
+    datum = date(model) - Day(1) # ABM time gets updated _after_ clients.
+    return sum([ workload(client, datum; cumulative=cumulative)
+                 for client in clients(model) ])
+end
+
 function position(client::Client, model::AgentBasedModel)
     days = (date(client) - dayzero(client)).value |> float
     geld = minimum([cost(client, model; cumulative=true), 10000.0])

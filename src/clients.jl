@@ -444,6 +444,16 @@ function workload(client::Client)
     return Vector{Date}(gdf.date), gdf.hours_sum
 end
 
+function workload(client::Client, datum::Date; cumulative=false)
+    if cumulative
+        return sum([ labour(event) for event in events(client)
+                     if date(event) <= datum ])
+    else
+        return sum([ labour(event) for event in events(client)
+                     if date(event) == datum ])
+    end
+end
+
 function cost(client::Client; cumulative=false)
     dates = date.(client |> events)
     dollars = cost.(client |> events)
