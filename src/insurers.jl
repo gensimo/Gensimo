@@ -20,7 +20,7 @@ end
 
 Clientele() = Clientele([])
 
-@multiagent struct InsuranceWorker(NoSpaceAgent)
+@multiagent struct InsuranceWorker(ContinuousAgent{2, Float64})
     @subagent struct ClientAssistant
         pool::Clientele # Multiple ClientAssistants will share the same pool.
         capacity::Float64 # Basically FTE fraction, so workload is required FTE.
