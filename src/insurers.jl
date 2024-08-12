@@ -1,4 +1,5 @@
 using Agents
+using DataStructures
 
 mutable struct Clientele
     clients::Vector{Client}
@@ -16,6 +17,10 @@ function Base.push!(clientele::Clientele, cs::Client...)
     for c in cs
         push!(clientele.clients, c)
     end
+end
+
+function requests(clientele::Clientele; status=:open)
+    return Dict(requests(client) => client for client in clientele)
 end
 
 Clientele() = Clientele([])

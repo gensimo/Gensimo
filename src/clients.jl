@@ -52,9 +52,9 @@ struct Request
 end
 
 label(request::Request) = request.label
-cost(request::Request) = request.cost
 labour(request::Request) = request.labour
 approved(request::Request) = request.approved
+cost(request::Request) = approved(request) ? request.cost : 0.0
 
 struct Segment
     tier::Int64
@@ -63,22 +63,6 @@ end
 
 tier(segment::Segment) = segment.tier
 label(segment::Segment) = segment.label
-
-#=
-
-struct Segment
-    division::String
-    branch::String
-    team::String
-    manager::String
-end
-
-division(p::Segment) = p.division
-branch(p::Segment) = p.branch
-team(p::Segment) = p.team
-manager(p::Segment) = p.manager
-
-=#
 
 struct Package
     label::String # The name of the package.
@@ -156,11 +140,21 @@ struct Event
                  , Segment
                  , Request
                  , Package }
+    term::Union{ Date      # When did the change to the claim close?
+               , Nothing } # Or 'nothing' if event has no duration.
+end
+
+function Event(date::Date, change::Union{Integer, Segment, Request, Package})
+    return Event(date, change, nothing)
 end
 
 date(e::Event) = e.date
+term(e::Event) = e.term
+startdate(e::Event) = date(e)
+enddate(e::Event) = term(e)
 change(e::Event) = e.change
 Base.isless(e1::Event, e2::Event) = date(e1) < date(e2)
+duration(e::Event) = isnothing(term(e)) ? 0 : (term(e) - date(e)).value
 
 function cost(event::Event)
     if event |> change |> typeof == Request
@@ -508,24 +502,33 @@ function Base.show(io::IO, claim::Claim)
 end
 
 function Base.show(io::IO, event::Event)
+    if !isnothing(term(event)) # Does the event have positive duration.
+        dstring = string(" > ", term(event), " (", duration(event), " days)")
+    else
+        dstring = ""
+    end
     if typeof(change(event)) == Segment
         print( io
-             , "  ", date(event), " > segmentation", "\n"
+             , "  ", date(event), " > segmentation"
+             , dstring, "\n"
              , change(event)
              )
     elseif typeof(change(event)) == Request
         print( io
-             , "  ", date(event), " > service request", "\n"
+             , "  ", date(event), " > service request"
+             , dstring, "\n"
              , "  | ", change(event)
              )
     elseif typeof(change(event)) == Package
         print( io
-             , "  ", date(event), " > package addition", "\n"
+             , "  ", date(event), " > package addition"
+             , dstring, "\n"
              , "  | ", change(event)
              )
     elseif typeof(change(event)) <: Integer
         print( io
-             , "  ", date(event), " > assessment", "\n"
+             , "  ", date(event), " > assessment"
+             , dstring, "\n"
              , "  | ", "NIDS: ", change(event)
              )
     end
