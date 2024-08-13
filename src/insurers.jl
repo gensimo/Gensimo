@@ -1,8 +1,8 @@
 using Agents
 using DataStructures
 
-mutable struct Clientele
-    clients::Vector{Client}
+@kwdef mutable struct Clientele
+    clients::Vector{Client} = Client[]
 end
 
 function Base.getindex(clientele::Clientele, i)
@@ -19,11 +19,22 @@ function Base.push!(clientele::Clientele, cs::Client...)
     end
 end
 
-function requests(clientele::Clientele; status=:open)
-    return Dict(requests(client) => client for client in clientele)
+clients(clientele::Clientele) = clientele.clients
+
+function Base.iterate(clientele::Clientele, state=1)
+    if state > length(clients(clientele))
+        return nothing
+    else
+        return clients(clientele)[state], state + 1
+    end
 end
 
-Clientele() = Clientele([])
+function requests(clientele::Clientele; status=:open)
+    return Dict( request => client for client in clientele
+                                   for request in requests(client)
+                                   if requests(client) |> !isempty
+                                   && Gensimo.status(request) == status )
+end
 
 @multiagent struct InsuranceWorker(ContinuousAgent{2, Float64})
     @subagent struct ClientAssistant

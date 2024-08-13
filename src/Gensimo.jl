@@ -33,11 +33,22 @@ export State,
        big6, nids, healthindex
 export name, heaviside, n
 
+# Include and export essentials from insurers.jl.
+include("insurers.jl")
+export Clientele, InsuranceWorker, ClientAssistant, ClaimsManager
+
+# Include and export essentials from providers.jl.
+include("providers.jl")
+export Provider, services, asks, capacity, capacity!
+
 # Include and export essentials from conductors.jl.
 include("conductors.jl")
 export Conductor, clients, nclients, context, epoch, eschaton, timeline,
        nactive, nonscheme, statistics, workload, workload_average, cost,
-       cost_average, request_cost
+       cost_average, request_cost,
+       client, event,
+       insurers, providers, allagents,
+       ninsurers, nproviders, nagents
 export Context, distros, requests, segments, states, probabilities
 
 # Include and export essentials from display.jl.
@@ -47,20 +58,13 @@ export baseplot, gplot, datesplot,
        datesplots, clientplot, conductorplot, nactiveplot,
        dashboard
 
-# Include and export essentials from insurers.jl.
-include("insurers.jl")
-export Clientele, InsuranceWorker, ClientAssistant, ClaimsManager
-
-# Include and export essentials from providers.jl.
-include("providers.jl")
-export Provider, services, asks, capacity, capacity!
-
 # Include and export essentials from processes.jl.
 include("processes.jl")
 export initialise, simulate!,
        client_step!, agent_step!, model_step!,
        stap, walk, nrequests, requests,
        nevents, cost, nactive, workload
+
 # Export everything this module defines up to here.
 for n in names(@__MODULE__; all=true)
     if Base.isidentifier(n) && n ∉ (Symbol(@__MODULE__), :eval, :include)

@@ -44,16 +44,19 @@ function λ(state::State, mean=:arithmetic)
     mean == :harmonic && return map(x->1/x, state[1:2]) |> sum |> x->1/(2/x) - 1
 end
 
-struct Request
+@kwdef mutable struct Request
     label::String # Description of the request.
-    cost::Float64 # Monetary cost of the request in e.g. AUD.
-    labour::Float64 # Labour cost of the request in person-hours.
-    approved::Bool # Whether the request request is approved or denied.
+    cost::Float64 = 0.0 # Monetary cost of the request in e.g. AUD.
+    labour::Float64 = 0.0 # Labour cost of the request in person-hours.
+    status::Symbol = :open # Approved, denied, pending, reopened etc.
 end
+
+Request(service) = Request(label=service)
 
 label(request::Request) = request.label
 labour(request::Request) = request.labour
-approved(request::Request) = request.approved
+status(request::Request) = request.status
+approved(request::Request) = status(request) == :approved
 cost(request::Request) = approved(request) ? request.cost : 0.0
 
 struct Segment
@@ -550,7 +553,7 @@ function Base.show(io::IO, request::Request)
     print( io, "<", label(request), ">"
          , " @ ", @sprintf "\$%.2f" cost(request)
          , " + ", labour(request), " hours FTE equivalent."
-         , approved(request) ? " Approved." : " Denied."
+         , string(" ", titlecase(string(status(request))), ".")
          )
 end
 

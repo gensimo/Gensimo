@@ -1,5 +1,4 @@
 using DataFrames, Distributions, StatsBase, Dates, Random
-using Agents
 using DataStructures: OrderedDict
 
 
@@ -68,11 +67,13 @@ segments(context::Context) = context.segments
 states(context::Context) = context.states
 probabilities(context::Context) = context.probabilities
 
-mutable struct Conductor
-    context::Context          # Allowed `Segments`s, `Request`s etc.
-    epoch::Date               # Initial date.
-    eschaton::Date            # Final date.
-    clients::Vector{Client}   # The clients to simulate (states and claims).
+@kwdef mutable struct Conductor
+    context::Context = Context() # Allowed `Segments`s, `Request`s etc.
+    epoch::Date = Date(2020)     # Initial date.
+    eschaton::Date = Date(2021)  # Final date.
+    clients::Vector{Client} = Client[]  # The client cohort.
+    insurers::Vector{InsuranceWorker} = InsuranceWorker[] # Insurance agents.
+    providers::Vector{Provider} = Provider[] # External health care providers.
 end
 
 # Accessors.
@@ -80,10 +81,16 @@ context(c::Conductor) = c.context
 epoch(c::Conductor) = c.epoch
 eschaton(c::Conductor) = c.eschaton
 clients(c::Conductor) = c.clients
+insurers(c::Conductor) = c.insurers
+providers(c::Conductor) = c.providers
+
 # Derivative accessors.
-nclients(conductor::Conductor) = conductor |> clients |> length
-timeline(conductor::Conductor) = ( epoch(conductor):Day(1):eschaton(conductor)
-                                   |> collect )
+allagents(c::Conductor) = [clients(c)... , insurers(c)... , providers(c)...]
+nagents(c::Conductor) = length(allagents(c))
+nclients(c::Conductor) = c |> clients |> length
+ninsurers(c::Conductor) = c |> insurers |> length
+nproviders(c::Conductor) = c |> providers |> length
+timeline(c::Conductor) = collect(epoch(c):Day(1):eschaton(c))
 
 function Conductor( context::Context
                   , epoch::Date, eschaton::Date
@@ -116,9 +123,9 @@ function Conductor( context::Context
         clients = makeclients(dates, nclients)
     end
     # Instantiate and deliver the object.
-    return Conductor( context
-                    , epoch, eschaton
-                    , clients )
+    return Conductor( context=context
+                    , epoch=epoch, eschaton=eschaton
+                    , clients=clients )
 end
 
 function Conductor( context::Context
@@ -130,7 +137,9 @@ function Conductor( context::Context
     epoch = zerodays[1]
     # End of simulation needs to be later than all zero days.
     if zerodays[end] < eschaton
-        return Conductor(context, epoch, eschaton, clients)
+        return Conductor( context=context
+                        , epoch=epoch, eschaton=eschaton
+                        , clients=clients )
     else
         error("At least one client has zero day at or after end of simulation.")
     end
@@ -250,4 +259,40 @@ function statistics(conductor::Conductor)
            , simulation_window = simulation_window
            , event_window = event_window
            )
+end
+
+function client(request::Request, conductor::Conductor)
+    cs = []
+    for client in clients(conductor)
+        for event in client |> events
+            if request == change(event)
+                push!(cs, client)
+            end
+        end
+    end
+    if length(cs) == 0
+        return nothing
+    elseif length(cs) == 1
+        return cs[1]
+    else
+        return cs
+    end
+end
+
+function event(request::Request, conductor::Conductor)
+    es = []
+    for client in clients(conductor)
+        for event in client |> events
+            if request == change(event)
+                push!(es, event)
+            end
+        end
+    end
+    if length(es) == 0
+        return nothing
+    elseif length(es) == 1
+        return es[1]
+    else
+        return es
+    end
 end

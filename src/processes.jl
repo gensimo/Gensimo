@@ -233,7 +233,7 @@ function request_simple!( client::Client, model::AgentBasedModel
                         ; request )
     # Write up the `Request` with a random cost.
     cost = 50.0 + 50 * rand(abmrng(model))
-    request = Request(request, cost, 0.0, true)
+    request = Request(request, cost, 0.0, :approved)
     # Make it an `Event`.
     event = Event(date(model), request)
     # Add the event to the client's `Claim`.
@@ -245,7 +245,7 @@ function request_liaising!( client::Client, model::AgentBasedModel
     # Select a provider --- randomly, for now.
     provider = random_agent(model, agent->typeof(agent)==Provider)
     # Write up the `Request`.
-    request = Request(request, provider[request], 0.0, true)
+    request = Request(request, provider[request], 0.0, :approved)
     # Make it an `Event`.
     event = Event(date(model), request)
     # Add the event to the client's `Claim`.
