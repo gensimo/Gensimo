@@ -1,9 +1,28 @@
 using Agents
 using DataStructures
 
+
+@multiagent struct InsuranceWorker(ContinuousAgent{2, Float64})
+    @subagent struct ClientAssistant
+        capacity::Float64 # Basically FTE fraction, so workload is required FTE.
+    end
+    @subagent struct ClaimsManager
+        capacity::Float64 # Basically FTE fraction, so workload is required FTE.
+    end
+end
+
 @kwdef mutable struct Clientele
     clients::Vector{Client} = Client[]
+    managers::Vector{InsuranceWorker} = InsuranceWorker[]
 end
+
+# Constructors.
+Clientele(n::Integer) = Clientele(clients=[Client() for i ∈ 1:n])
+
+# Assorted accessors and mutators.
+clients(clientele::Clientele) = clientele.clients
+managers(clientele::Clientele) = clientele.managers
+managers!(c::Clientele, ms::Vector{InsuranceWorker})=push!(managers(c), ms...)
 
 function Base.getindex(clientele::Clientele, i)
     return clientele.clients[i]
@@ -19,8 +38,6 @@ function Base.push!(clientele::Clientele, cs::Client...)
     end
 end
 
-clients(clientele::Clientele) = clientele.clients
-
 function Base.iterate(clientele::Clientele, state=1)
     if state > length(clients(clientele))
         return nothing
@@ -34,15 +51,4 @@ function requests(clientele::Clientele; status=:open)
                                    for request in requests(client)
                                    if requests(client) |> !isempty
                                    && Gensimo.status(request) == status )
-end
-
-@multiagent struct InsuranceWorker(ContinuousAgent{2, Float64})
-    @subagent struct ClientAssistant
-        pool::Clientele # Multiple ClientAssistants will share the same pool.
-        capacity::Float64 # Basically FTE fraction, so workload is required FTE.
-    end
-    @subagent struct ClaimsManager
-        portfolio::Clientele # In principle: one portfolio, one claims manager.
-        capacity::Float64 # Basically FTE fraction, so workload is required FTE.
-    end
 end

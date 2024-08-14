@@ -255,6 +255,7 @@ sex(p::Personalia) = p.sex
     claim::Claim = Claim()
 end
 
+# Constructors.
 Client(client::Client) = deepcopy(client)
 Client( personalia::Personalia = Personalia()
       , history::Vector{Tuple{Date, State}} = [(Date(2020), State(rand(12)))]
