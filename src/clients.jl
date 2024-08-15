@@ -55,9 +55,12 @@ Request(service) = Request(label=service)
 
 label(request::Request) = request.label
 labour(request::Request) = request.labour
+labour!(request::Request, l) = request.labour = l
 status(request::Request) = request.status
+status!(request::Request, s::Symbol) = request.status = s
 approved(request::Request) = status(request) == :approved
 cost(request::Request) = approved(request) ? request.cost : 0.0
+cost!(request::Request, c) = request.cost = c
 
 struct Segment
     tier::Int64
@@ -137,7 +140,7 @@ function Base.in(service::String, package::Package)
              || service ∈ package |> plans |> keys )
 end
 
-struct Event
+mutable struct Event
     date::Date # When did the change to the claim occur?
     change::Union{ Integer # The assessment, e.g. NIDS.
                  , Segment
@@ -155,6 +158,8 @@ date(e::Event) = e.date
 term(e::Event) = e.term
 startdate(e::Event) = date(e)
 enddate(e::Event) = term(e)
+term!(e::Event, date::Date) = e.term = date
+enddate(e::Event, date::Date) = term(e, date)
 change(e::Event) = e.change
 Base.isless(e1::Event, e2::Event) = date(e1) < date(e2)
 duration(e::Event) = isnothing(term(e)) ? 0 : (term(e) - date(e)).value

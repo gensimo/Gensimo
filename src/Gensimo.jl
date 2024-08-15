@@ -18,7 +18,7 @@ export Client,
        isactive, isonscheme, issegmented,
        workload
 export Event,
-       date, change, cost, labour
+       date, change, cost, labour, term, term!
 export Personalia,
        name, age, sex
 export Segment,
@@ -28,14 +28,16 @@ export Package,
        firstday, lastday, isactive, iscovered, coverleft, coveredin,
        planned, planleft, dates
 export Request,
-       label, cost, labour, approved
+       label, cost, labour, approved, status,
+       cost!, labour!, status!
 export State,
        big6, nids, healthindex
 export name, heaviside, n
 
 # Include and export essentials from insurers.jl.
 include("insurers.jl")
-export Clientele, InsuranceWorker, ClientAssistant, ClaimsManager
+export Clientele, InsuranceWorker, ClientAssistant, ClaimsManager,
+       Task, tasks, close!
 
 # Include and export essentials from providers.jl.
 include("providers.jl")

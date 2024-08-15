@@ -1,5 +1,4 @@
 using Agents
-using DataStructures
 
 
 @multiagent struct InsuranceWorker(ContinuousAgent{2, Float64})
@@ -38,6 +37,10 @@ function Base.push!(clientele::Clientele, cs::Client...)
     end
 end
 
+function Base.length(clientele::Clientele)
+    return length(clientele.clients)
+end
+
 function Base.iterate(clientele::Clientele, state=1)
     if state > length(clients(clientele))
         return nothing
@@ -51,4 +54,31 @@ function requests(clientele::Clientele; status=:open)
                                    for request in requests(client)
                                    if requests(client) |> !isempty
                                    && Gensimo.status(request) == status )
+end
+
+function tasks(client::Client)
+    ts = []
+    for event in events(client)
+        if change(event) isa Request
+            if status(change(event)) != :closed
+                push!(ts, change(event) => event => client)
+            end
+        end
+    end
+    return ts
+end
+
+function tasks(clientele::Clientele)
+    return [ task for client in clientele for task in tasks(client) ]
+end
+
+const Task = Pair{Request, Pair{Event, Client}}
+
+request(task::Task) = task.first
+event(task::Task) = task.second.first
+client(task::Task) = task.second.second
+
+function close!(task::Task, date::Date)
+    status!(request(task), :closed)
+    term!(event(task), date)
 end
