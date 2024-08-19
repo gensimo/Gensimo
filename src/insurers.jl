@@ -10,14 +10,29 @@ using Agents
     end
 end
 
-const Task = Pair{Request, Pair{Event, Client}}
+@kwdef mutable struct Task
+    request::Request
+    event::Event
+    client::Client
+    allocation::Union{InsuranceWorker, Nothing} = nothing
+end
+
+# const Task = Pair{Request, Pair{Event, Client}}
+
+# Constructors.
+function Task(task::Pair{Request, Pair{Event, Client}})
+    return Task(task.first, task.second.first, task.second.second, nothing)
+end
 
 # Accessors, mutators and assorted utility functions.
-request(task::Task) = task.first
-event(task::Task) = task.second.first
-client(task::Task) = task.second.second
+request(task::Task) = task.request # task.first
+event(task::Task) = task.event # task.second.first
+client(task::Task) = task.client # task.second.second
 date(task::Task) = date(event(task))
 Base.isless(t1::Task, t2::Task) = date(event(t1)) < date(event(t2))
+allocate!(task::Task, manager::InsuranceWorker) = task.allocation = manager
+isallocated(task::Task) = !isnothing(task.allocation)
+
 
 function close!(task::Task, date::Date)
     status!(request(task), :closed)
@@ -80,7 +95,7 @@ function tasks(client::Client)
     for event in events(client)
         if change(event) isa Request
             if status(change(event)) == :open
-                push!(ts, change(event) => event => client)
+                push!(ts, Task(change(event) => event => client))
             end
         end
     end
@@ -101,6 +116,8 @@ function allocate!(clientele::Clientele, m::InsuranceWorker, t::Task)
     end
     # Update the status of the request.
     status!(r, :allocated)
+    # Update the task to list the allocation.
+    allocate!(t, m)
 end
 
 function allocate!(clientele::Clientele, taskfor::Pair)
@@ -108,4 +125,14 @@ function allocate!(clientele::Clientele, taskfor::Pair)
     m, t = taskfor
     # Call the other `allocate!` function.
     allocate!(clientele, m, t)
+end
+
+function Base.show(io::IO, task::Task)
+    print( io
+         , date(task), ": "
+         , "<", label(request(task)), ">"
+         , " for "
+         , name(personalia(client(task)))
+         , " (ID: ", client(task).id, ")"
+         )
 end
