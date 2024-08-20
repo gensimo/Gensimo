@@ -136,3 +136,32 @@ function Base.show(io::IO, task::Task)
          , " (ID: ", client(task).id, ")"
          )
 end
+
+function Base.show(io::IO, clientele::Clientele)
+    println(io, "Clients (", length(clientele), "):")
+    for client in clientele
+        show(io, personalia(client))
+        print(io, " (ID: ", client.id, ") ")
+        nopen = length(requests(client; status=:open))
+        nallo = length(requests(client; status=:allocated))
+        println(io, "\t", "Requests: ", nopen, " open, ", nallo, " allocated.")
+    end
+    n = length(managers(clientele))
+    if n == 0
+        p = ""
+    elseif n == 1
+        p = " - portfolio"
+    else
+        p = " - pool"
+    end
+    println(io, "Managers (", n, p, "):")
+    for man in managers(clientele)
+        tasks = allocations(clientele)[man]
+        println( io, "  | Manager ", man.id, " "
+               , "/\t", length(tasks)
+               , " task", length(tasks)==1 ? "" : "s", " allocated:")
+        for task in tasks
+            println(io, "    * ", task)
+        end
+    end
+end

@@ -24,7 +24,7 @@ export Personalia,
 export Segment,
        tier, label, division, branch, team, manager
 export Package,
-       label, fromto, cover, plans
+       label, fromto, cover, plans, term, term!, enddate, enddate!,
        firstday, lastday, isactive, iscovered, coverleft, coveredin,
        planned, planleft, dates
 export Request,

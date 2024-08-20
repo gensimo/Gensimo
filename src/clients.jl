@@ -159,7 +159,7 @@ term(e::Event) = e.term
 startdate(e::Event) = date(e)
 enddate(e::Event) = term(e)
 term!(e::Event, date::Date) = e.term = date
-enddate(e::Event, date::Date) = term(e, date)
+enddate!(e::Event, date::Date) = term!(e, date)
 change(e::Event) = e.change
 Base.isless(e1::Event, e2::Event) = date(e1) < date(e2)
 duration(e::Event) = isnothing(term(e)) ? 0 : (term(e) - date(e)).value
@@ -286,9 +286,16 @@ states(client::Client) = client |> history |> states
 date(client::Client) = client |> history |> date
 state(client::Client) = client |> history |> state
 dayzero(client::Client) = dates(client)[1]
-requests(client::Client) = client |> claim |> requests
+function requests(client::Client; status=nothing)
+    if isnothing(status)
+        return requests(claim(client))
+    else
+        return [ r for r in requests(client) if r.status==status ]
+    end
+end
 events(client::Client) = client |> claim |> events
 tier(client::Client) = issegmented(client) ? tier(segment(client)) : nothing
+name(client::Client) = name(personalia(client))
 
 # Other utility functions.
 τ(client::Client, date::Date) = date - dayzero(client) |> Dates.value
@@ -480,7 +487,7 @@ function Base.show(io::IO, client::Client)
     n < 10 ? n : n=10
     println( io
            , "Client ID: ", client.id, "\n"
-           , personalia(client)
+           , personalia(client), "\n"
            , "Status (", date(client), "):\n"
            , "  | ϕ = ", state(client)[1], "\n"
            , "  | ψ = ", state(client)[2], "\n"
@@ -491,11 +498,11 @@ function Base.show(io::IO, client::Client)
 end
 
 function Base.show(io::IO, personalia::Personalia)
-    println( io
-           , "  | ", name(personalia), ". "
-           , age(personalia), " year-old "
-           , sex(personalia) ? "male" : "female", "."
-           )
+    print( io
+         , "  | ", name(personalia), ". "
+         , age(personalia), " year-old "
+         , sex(personalia) ? "male" : "female", "."
+         )
 end
 
 function Base.show(io::IO, claim::Claim)

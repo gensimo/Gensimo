@@ -18,7 +18,8 @@ function initialise( conductor::Conductor
                  )
     space = ContinuousSpace(dimensions, spacing=1.0, periodic=false)
     # Set up the model.
-    model = StandardABM( Union{Client, Provider}, space
+    model = StandardABM( Union{Client, InsuranceWorker, Provider}
+                       , space
                        ; properties = conductor
                        , warn = false
                        , agent_step! = step_agent!
