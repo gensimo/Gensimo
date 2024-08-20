@@ -85,8 +85,8 @@ insurers(c::Conductor) = c.insurers
 providers(c::Conductor) = c.providers
 
 # Derivative accessors.
-allagents(c::Conductor) = [clients(c)... , insurers(c)... , providers(c)...]
-nagents(c::Conductor) = length(allagents(c))
+agents(c::Conductor) = [clients(c)... , insurers(c)... , providers(c)...]
+nagents(c::Conductor) = length(agents(c))
 nclients(c::Conductor) = c |> clients |> length
 ninsurers(c::Conductor) = c |> insurers |> length
 nproviders(c::Conductor) = c |> providers |> length

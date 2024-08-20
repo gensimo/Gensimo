@@ -49,7 +49,7 @@ export Conductor, clients, nclients, context, epoch, eschaton, timeline,
        nactive, nonscheme, statistics, workload, workload_average, cost,
        cost_average, request_cost,
        client, event,
-       insurers, providers, allagents,
+       insurers, providers, agents,
        ninsurers, nproviders, nagents
 export Context, distros, requests, segments, states, probabilities
 
