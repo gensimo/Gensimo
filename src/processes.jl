@@ -270,6 +270,43 @@ function requests(client::Client, model::AgentBasedModel)
     return requests
 end
 
+function next_request(client::Client, model::AgentBasedModel)
+    # Get the necessary data.
+    tolist = model.context.request_distros["tolist"]
+    fromlist = model.context.request_distros["fromlist"]
+    T = model.context.request_distros["T"]
+    # Deduce order of Markov Chain.
+    if fromlist[1] isa Tuple
+        order = length(fromlist[1])
+    else
+        order = 1
+    end
+    # Get order-length tail of request sequence.
+    rs = label.(requests(client))
+    if order == 1
+        if isempty(rs)
+            from = nothing
+        else
+            from = rs[end]
+        end
+    else
+        # Make Tuple with nothings.
+        from = Tuple(nothing for i in 1:order)
+        # Fill the from Tuple with the corresponding requests --- if any.
+        n = minimum([order, length(rs)])
+        if n == 0
+            from = Tuple(nothing for i in 1:order)
+        else
+            from = Tuple( i <= order ? rs[end - (i-1)] : nothing
+                          for i ∈ reverse(1:n) )
+            # from = reverse(from)
+        end
+    end
+    # Deliver.
+    return from # TODO: Still no good.
+end
+
+
 function stap( nsteps=1::Int, x₀=1.0
              ; u=1.09, d=1/1.11, p=.5, step=:multiplicative)
     # Take the requested number of steps.
