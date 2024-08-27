@@ -65,7 +65,8 @@ include("processes.jl")
 export initialise, simulate!,
        client_step!, agent_step!, model_step!,
        stap, walk, nrequests, requests,
-       nevents, cost, nactive, workload
+       nevents, cost, nactive, workload,
+       next_request, next_requests
 
 # Export everything this module defines up to here.
 for n in names(@__MODULE__; all=true)
