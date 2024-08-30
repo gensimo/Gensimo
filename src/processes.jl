@@ -356,9 +356,9 @@ function requests(client::Client, model::AgentBasedModel)
     # Get the number of requests for today's hazard rate.
     nrs = nrequests(client, abmrng(model))
     # Obtain the necessary data.
-    tolist = model.context.request_distros["tolist"]
-    fromlist = model.context.request_distros["fromlist"]
-    T = model.context.request_distros["T"]
+    tolist = model.context[:tolist]
+    fromlist = model.context[:fromlist]
+    T = model.context[:T]
     # Deduce order of Markov Chain.
     if fromlist[1] isa Tuple
         order = length(fromlist[1])

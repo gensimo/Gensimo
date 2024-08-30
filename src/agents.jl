@@ -19,7 +19,7 @@ end
 n = 10
 cs = [ Client( id=i, pos=(0.0, 0.0), vel=(0.0, 0.0)
                        , personalia = Personalia()
-                       , history = [ ( rand(Date(2020):Date(2025))
+                       , history = [ ( rand(Date(2020):Date(2021))
                                      , State(rand(12))) ]
                        , claim = Claim() )
                  for i ∈ 1:n ]
