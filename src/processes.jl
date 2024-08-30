@@ -29,6 +29,12 @@ function initialise( conductor::Conductor
     for client in clients(conductor)
         add_agent_own_pos!(client, model)
     end
+    # Set up the insurance organisation.
+    for clientele in clienteles(conductor)
+        for manager in managers(clientele)
+            add_agent!(manager, model)
+        end
+    end
     # Add providers. TODO: This needs to be included in the conductor.
     for p in 1:3
         menu = Dict("Allied Health Service" => 80.0 + randn(abmrng(model)))
@@ -47,6 +53,18 @@ end
 function clients(model::AgentBasedModel)
     agents = model |> allagents |> collect |> values
     return [ agent for agent in agents if typeof(agent) == Client ]
+end
+
+function clienteles(model::AgentBasedModel)
+    return model.clienteles
+end
+
+function portfolios(model::AgentBasedModel)
+    return [ p for p in clienteles(model) if p |> isportfolio ]
+end
+
+function pools(model::AgentBasedModel)
+    return [ p for p in clienteles(model) if p |> ispool ]
 end
 
 function providers(model::AgentBasedModel)
@@ -132,42 +150,76 @@ end
 
 function step_model!(model) end
 
-function _step_client!(client::Client, model::AgentBasedModel)
+function step_client!(client::Client, model::AgentBasedModel)
     # Today's date as per the model's calendar.
-    date = date(model)
+    today = date(model)
     # Has this client's time come?
-    if τ(client, date) < 0
+    if τ(client, today) < 0
         return # Client's time has not come yet. Move to next day.
     end
-    # Client is on-scheme. Has the client been onboarded?
+    # Has the client been onboarded?
     if !isonscheme(client) # TODO: See `onscheme()` function.
-        # TODO: Perform onboarding. Severity assessment, segmentation, etc.
+        # 1. Segmentation.
+        segment!(client, model)
+        # 2. Allocation to Clientele, i.e. add to pool or portfolio.
+        if tier(client, model) == model.context[:ntiers]
+            # If in highest tier, add to a random portfolio.
+            push!(rand(abmrng(model), portfolios(model)), client)
+        else
+            # Otherwise, add to a random pool.
+            push!(rand(abmrng(model), pools(model)), client)
+        end
     end
-    # Any requests due today from a plan in the client's package?
-    plans = client |> planned(date)
-    for plan in plans
-        # TODO: events, feedback = process(client, model; plan=plan)
-        # TODO: Log events and do things with feedback.
+    # # Any requests due today from a plan in the client's package?
+    # plans = client |> planned(date)
+    # for plan in plans
+        # # TODO: events, feedback = process(client, model; plan=plan)
+        # # TODO: Log events and do things with feedback.
+    # end
+    # # Client is on-scheme and on-board. Process today's requests, if any.
+    # for service in requests(client, model)
+        # # TODO: event, feedback = process(client, model; request=service)
+        # # TODO: Log events and do things with feedback.
+    # end
+    # # Client's requests are processed. Add events to claim and use feedback.
+    # for event in events # Adding events from processed requests, if any.
+        # client += event
+    # end
+    # if feedback |> !isnothing # Make use of feedback, if any.
+        # # Adjust the request timing and volume (hazard rate).
+        # new_λ = stap( 1, λ(client)
+                    # ; u = feedback.uptick
+                    # , d = feedback.downtick
+                    # , p = feedback.probability )
+        # update_client!(client, date(model), new_λ)
+        # # Adjust the probabilities for the kind of next service requested.
+        # # TODO: Adjust the Markov Chain or distributions in the `Context`.
+    # end
+end
+
+function tier(client::Client, model::AgentBasedModel)
+    # How many service levels are there?
+    ntiers = model.context[:ntiers]
+    # What level is appropriate for this client? Tiers evenly spread.
+    h = hazard(client) # Hazard level, mean of ϕ and ψ --- between 0 and 1.
+    tier = 1 # Corresponding to h == 1.
+    # Loop until appropriate level found.
+    while h < 1 - tier / ntiers
+        tier += 1
     end
-    # Client is on-scheme and on-board. Process today's requests, if any.
-    for service in requests(client, model)
-        # TODO: event, feedback = process(client, model; request=service)
-        # TODO: Log events and do things with feedback.
-    end
-    # Client's requests are processed. Add events to claim and use feedback.
-    for event in events # Adding events from processed requests, if any.
-        client += event
-    end
-    if feedback |> !isnothing # Make use of feedback, if any.
-        # Adjust the request timing and volume (hazard rate).
-        new_λ = stap( 1, λ(client)
-                    ; u = feedback.uptick
-                    , d = feedback.downtick
-                    , p = feedback.probability )
-        update_client!(client, date(model), new_λ)
-        # Adjust the probabilities for the kind of next service requested.
-        # TODO: Adjust the Markov Chain or distributions in the `Context`.
-    end
+    # Deliver.
+    return tier
+end
+
+function segment!(client::Client, model::AgentBasedModel)
+    # Assess the tier.
+    t = tier(client, model)
+    # Make a Segment object.
+    s = Segment(t, "Service Level $t")
+    # Put it in a segmentation Event.
+    e = Event(date(model), s)
+    # Add the segmentation event to the client's claim.
+    push!(client, e)
 end
 
 function process( client, model
@@ -205,15 +257,15 @@ function process_cover(client::Client, model::AgentBasedModel; request)
     # Decrement the cover by one unit.
     cover(p)[request] -= 1
     # Return an `Event` with zero cost.
-    return Event(date(model), Request(request, 0.0, 0.0, true))
+    return Event(date(model), Request(request, 0.0, 0.0, :approved))
 end
 
 function process_plan(client::Client, model::AgentBasedModel; request)
     # All there is to do is return an `Event` with zero cost.
-    return Event(date(model), Request(request, 0.0, 0.0, true))
+    return Event(date(model), Request(request, 0.0, 0.0, :approved))
 end
 
-function step_client!(client::Client, model::AgentBasedModel)
+function _step_client!(client::Client, model::AgentBasedModel)
     # Get the requests for today's hazard rate and deal with them sequentially.
     for request in _requests(client, model)
         # Is the request for an allied health service?

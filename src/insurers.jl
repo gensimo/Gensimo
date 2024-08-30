@@ -50,6 +50,9 @@ Clientele(n::Integer) = Clientele(clients=[Client() for i ∈ 1:n])
 # Assorted accessors and mutators.
 clients(clientele::Clientele) = clientele.clients
 managers(clientele::Clientele) = keys(clientele.managers) |> collect
+isportfolio(clientele::Clientele) = length(managers(clientele)) == 1
+isport(clientele::Clientele) = isportfolio(clientele)
+ispool(clientele::Clientele) = length(managers(clientele)) > 1
 allocations(clientele::Clientele) = clientele.managers
 function managers!(c::Clientele, ms::Vector{InsuranceWorker})
     for m in ms

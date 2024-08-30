@@ -13,8 +13,8 @@ export Client,
        reset_client, personalia, history, claim, segment,
        dates, date, states, nstates, state, dayzero,
        update_client!,
-       nids, τ, dτ, λ, age,
-       events, nevents, requests, nrequests, nrequests, packages
+       nids, τ, dτ, λ, age, hazard,
+       events, nevents, requests, nrequests, nrequests, packages,
        isactive, isonscheme, issegmented,
        workload
 export Event,
@@ -37,7 +37,8 @@ export name, heaviside, n
 # Include and export essentials from insurers.jl.
 include("insurers.jl")
 export Clientele, InsuranceWorker, ClientAssistant, ClaimsManager,
-       Task, tasks, close!
+       Task, tasks, close!,
+       ispool, isport, isportfolio, managers
 
 # Include and export essentials from providers.jl.
 include("providers.jl")
@@ -49,8 +50,9 @@ export Conductor, clients, nclients, context, epoch, eschaton, timeline,
        nactive, nonscheme, statistics, workload, workload_average, cost,
        cost_average, request_cost,
        client, event,
-       insurers, providers, agents,
-       ninsurers, nproviders, nagents
+       clienteles, nclienteles, nmanagers,
+       providers, agents,
+       nproviders, nagents
 export Context, distros, requests, segments, states, probabilities
 
 # Include and export essentials from display.jl.
@@ -66,7 +68,8 @@ export initialise, simulate!,
        client_step!, agent_step!, model_step!,
        stap, walk, nrequests, requests,
        nevents, cost, nactive, workload,
-       next_request, next_requests
+       next_request, next_requests,
+       portfolios, pools
 
 # Export everything this module defines up to here.
 for n in names(@__MODULE__; all=true)

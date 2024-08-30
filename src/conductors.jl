@@ -30,49 +30,15 @@ end
 
 request_cost(client, base=100.0, rng=nothing) = base*nrequests(client, rng)
 
-struct Context
-    # Necessary context --- these fields are needed by any simulation.
-    request_distros::Dict
-    requests::Vector{Request} # List of `Request`s (label, cost).
-    segments::Vector{Segment} # List of `Segment`s (dvsn, brnch, tm, mngr).
-    # Optional context --- these fields can be inferred or ignored.
-    states::Vector{Vector{String}} # List of allowed service lists ('states').
-    probabilities::Dict{Vector{String}, AbstractArray} # Trnstn prbs.
-end
-
-Context( request_distros
-       , requests, segments) = Context( request_distros
-                                      , requests
-                                      , segments
-                                      , Vector{Vector{String}}()
-                                      , Dict{ Vector{Vector{String}}
-                                            , AbstractArray}() )
-
-Context(request_distros) = Context( request_distros
-                                  , Vector{Request}()
-                                  , Vector{Segment}()
-                                  , Vector{Vector{String}}()
-                                  , Dict{ Vector{String}
-                                        , AbstractArray}() )
-
-Context() = Context( Dict()
-                   , Vector{Request}()
-                   , Vector{Segment}()
-                   , Vector{Vector{String}}()
-                   , Dict{Vector{String}, AbstractArray}() )
-
-distros(context::Context) = context.request_distros
-requests(context::Context) = context.requests
-segments(context::Context) = context.segments
-states(context::Context) = context.states
-probabilities(context::Context) = context.probabilities
+const Context = Dict{Symbol, Any}
+distros(context::Context) = context[:distros]
 
 @kwdef mutable struct Conductor
-    context::Context = Context() # Allowed `Segments`s, `Request`s etc.
+    context::Context = Context() # Model parameters.
     epoch::Date = Date(2020)     # Initial date.
     eschaton::Date = Date(2021)  # Final date.
     clients::Vector{Client} = Client[]  # The client cohort.
-    insurers::Vector{InsuranceWorker} = InsuranceWorker[] # Insurance agents.
+    clienteles::Vector{Clientele} = Clientele[] # The organisational structure.
     providers::Vector{Provider} = Provider[] # External health care providers.
 end
 
@@ -81,14 +47,15 @@ context(c::Conductor) = c.context
 epoch(c::Conductor) = c.epoch
 eschaton(c::Conductor) = c.eschaton
 clients(c::Conductor) = c.clients
-insurers(c::Conductor) = c.insurers
+clienteles(c::Conductor) = c.clienteles
 providers(c::Conductor) = c.providers
 
 # Derivative accessors.
 agents(c::Conductor) = [clients(c)... , insurers(c)... , providers(c)...]
 nagents(c::Conductor) = length(agents(c))
 nclients(c::Conductor) = c |> clients |> length
-ninsurers(c::Conductor) = c |> insurers |> length
+nclienteles(c::Conductor) = c |> clienteles |> length
+nmanagers(c::Conductor) = sum([ length(managers(c)) for p in clienteles(c) ])
 nproviders(c::Conductor) = c |> providers |> length
 timeline(c::Conductor) = collect(epoch(c):Day(1):eschaton(c))
 

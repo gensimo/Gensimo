@@ -362,6 +362,10 @@ function λ(mean=:arithmetic)
     end
 end
 
+function hazard(client::Client)
+    return mean(state(client)[1:2])
+end
+
 function update_client!(client::Client, date::Date, state::State)
     # Update client's actual state vector.
     push!(client.history, (date, state))
@@ -382,56 +386,6 @@ function update_client!(client::Client, date::Date, λ)
     # Just call `update_client!` with inferred ϕ and ψ.
     update_client!(client, date, 1/(λ+1), 1/(λ+1))
 end
-
-# function Client(id, pos, personalia, history, claim)
-    # s = history |> state
-    # return Client( id # Agent ID.
-                 # , (s[1], s[2]) # 2D (ϕ, ψ) 'location' vector.
-                 # , (0.0, 0.0) # Dummy 'velocity' vector.
-                 # , personalia
-                 # , history
-                 # , claim )
-# end
-
-# function Client(id, personalia, history, claim)
-    # s = history |> state
-    # return Client( id # Agent ID.
-                 # , (0.0, 0.0) # (s[1], s[2]) # 2D (ϕ, ψ) 'location' vector.
-                 # , (0.0, 0.0) # Dummy 'velocity' vector.
-                 # , personalia
-                 # , history
-                 # , claim )
-# end
-
-# Client(date::Date) = Client( Personalia()
-                           # , [(date, State([.1, .1, rand(10)...]))]
-                           # , Claim() )
-# Client() = Client(Personalia(), [(Date(2020), State(rand(12)))], Claim())
-
-
-# function ClientMaker(id=0)
-    # id -= 1 # So as to actually start at the current value of `id`.
-    # function C(personalia, history, claim)
-        # id += 1
-        # return Client(id, personalia, history, claim)
-    # end
-# end
-
-# let
-    # start_id = 0
-    # global function Client(personalia, history, claim; id=nothing)
-        # isnothing(id) ? start_id += 1 : start_id = id
-        # return Client(start_id, personalia, history, claim)
-    # end
-# end
-
-# function reset_client()
-    # Client( Personalia()
-          # , [ (Date(2020), State(rand(12))) ]
-          # , Claim()
-          # ; id=0 )
-    # return nothing
-# end
 
 function isactive(client::Client, refdate::Date)
     if isempty(client |> events)
