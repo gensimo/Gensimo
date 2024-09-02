@@ -18,7 +18,10 @@ function initialise( conductor::Conductor
                  )
     space = ContinuousSpace(dimensions, spacing=1.0, periodic=false)
     # Set up the model.
-    model = StandardABM( Union{Client, InsuranceWorker, Provider}
+    model = StandardABM( Union{ Client
+                              , Clientele
+                              , InsuranceWorker
+                              , Provider }
                        , space
                        ; properties = conductor
                        , warn = false
@@ -31,6 +34,7 @@ function initialise( conductor::Conductor
     end
     # Set up the insurance organisation.
     for clientele in clienteles(conductor)
+        add_agent!(clientele, model)
         for manager in managers(clientele)
             add_agent!(manager, model)
         end
@@ -176,11 +180,15 @@ function step_client!(client::Client, model::AgentBasedModel)
         # # TODO: events, feedback = process(client, model; plan=plan)
         # # TODO: Log events and do things with feedback.
     # end
-    # # Client is on-scheme and on-board. Process today's requests, if any.
-    # for service in requests(client, model)
-        # # TODO: event, feedback = process(client, model; request=service)
-        # # TODO: Log events and do things with feedback.
-    # end
+
+    # Client on-scheme and on-board. Open events for today's requests, if any.
+    for service in requests(client, model)
+        e = Event(date(model), Request(service))
+        push!(client, e)
+    end
+        # TODO: event, feedback = process(client, model; request=service)
+        # TODO: Log events and do things with feedback.
+
     # # Client's requests are processed. Add events to claim and use feedback.
     # for event in events # Adding events from processed requests, if any.
         # client += event
@@ -376,7 +384,6 @@ function requests(client::Client, model::AgentBasedModel)
         if length(from) == 1
             from = from[1]
         end
-        println(from)
         # Turn from into an integer index.
         i = findfirst(==(from), fromlist)
         # Get the probability distribution.

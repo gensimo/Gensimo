@@ -39,13 +39,15 @@ function close!(task::Task, date::Date)
     term!(event(task), date)
 end
 
-@kwdef mutable struct Clientele
+# @kwdef mutable struct Clientele
+@agent struct Clientele(ContinuousAgent{2, Float64})
     clients::Vector{Client} = Client[]
     managers::Dict{InsuranceWorker,Vector{Task}} = Dict()
 end
 
 # Constructors.
-Clientele(n::Integer) = Clientele(clients=[Client() for i ∈ 1:n])
+Clientele(n::Integer) = Clientele( id=1, pos=(0, 0), vel=(0, 0)
+                                 , clients=[Client() for i ∈ 1:n] )
 
 # Assorted accessors and mutators.
 clients(clientele::Clientele) = clientele.clients

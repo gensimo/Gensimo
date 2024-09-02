@@ -16,6 +16,11 @@ for e in es
     push!(c, e)
 end
 
+
+###
+d = load("data/tac-newmarkov.jld2")
+d = Dict( Symbol(x) => d[x] for x in keys(d) )
+
 n = 10
 cs = [ Client( id=i, pos=(0.0, 0.0), vel=(0.0, 0.0)
                        , personalia = Personalia()
@@ -23,10 +28,10 @@ cs = [ Client( id=i, pos=(0.0, 0.0), vel=(0.0, 0.0)
                                      , State(rand(12))) ]
                        , claim = Claim() )
                  for i ∈ 1:n ]
-portfolio = Clientele()
+portfolio = Clientele(id=n+5, pos=(0.0, 0.0), vel=(0.0, 0.0))
 managers!(portfolio, [ ClaimsManager(i, (0, 0), (0, 0), rand(1:10))
                        for i in n+1:n+1 ])
-pool = Clientele()
+pool = Clientele(id=n+6, pos=(0.0, 0.0), vel=(0.0, 0.0))
 managers!(pool, [ ClientAssistant(i, (0, 0), (0, 0), rand(1:10))
                   for i in n+2:n+4 ])
 
