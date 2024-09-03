@@ -10,6 +10,8 @@ using Agents
     end
 end
 
+capacity(m::InsuranceWorker) = m.capacity
+
 @kwdef mutable struct Task
     request::Request
     event::Event

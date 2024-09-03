@@ -150,9 +150,27 @@ function step_agent!(agent, model)
     if agent isa Client
         step_client!(agent, model)
     end
+    if agent isa Clientele
+        step_clientele!(agent, model)
+    end
 end
 
 function step_model!(model) end
+
+function step_clientele!(clientele::Clientele, model::AgentBasedModel)
+    # Make chronologically ordered tasklist, oldest first.
+    ts = tasks(clientele)
+    # Get the base number of hours for each service.
+    hs = model.baselabour
+    # Keep allocating tasks to random managers with capacity.
+    for manager in managers(clientele)
+
+
+    end
+
+
+
+end
 
 function step_client!(client::Client, model::AgentBasedModel)
     # Today's date as per the model's calendar.

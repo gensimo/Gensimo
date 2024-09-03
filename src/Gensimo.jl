@@ -36,7 +36,7 @@ export name, heaviside, n
 
 # Include and export essentials from insurers.jl.
 include("insurers.jl")
-export Clientele, InsuranceWorker, ClientAssistant, ClaimsManager,
+export Clientele, InsuranceWorker, ClientAssistant, ClaimsManager, capacity
        Task, tasks, close!,
        ispool, isport, isportfolio, managers
 
