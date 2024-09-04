@@ -3,10 +3,10 @@ using Agents
 
 @multiagent struct InsuranceWorker(ContinuousAgent{2, Float64})
     @subagent struct ClientAssistant
-        capacity::Float64 # Basically FTE fraction, so workload is required FTE.
+        capacity::Int64 # Number of concurrent tasks the worker can work on.
     end
     @subagent struct ClaimsManager
-        capacity::Float64 # Basically FTE fraction, so workload is required FTE.
+        capacity::Int64 # Number of concurrent tasks the worker can work on.
     end
 end
 
@@ -58,6 +58,21 @@ isportfolio(clientele::Clientele) = length(managers(clientele)) == 1
 isport(clientele::Clientele) = isportfolio(clientele)
 ispool(clientele::Clientele) = length(managers(clientele)) > 1
 allocations(clientele::Clientele) = clientele.managers
+function nallocations(clientele::Clientele)
+    return Dict( key => length(val) for (key, val) in allocations(clientele) )
+end
+function nfree(clientele::Clientele; total=false)
+    d = Dict( key => capacity(key) - length(val)
+              for (key, val) in allocations(clientele) )
+    if total
+        return sum(values(d))
+    else
+        return d
+    end
+end
+anyfree(clientele::Clientele) = nfree(clientele; total=true) > 0
+freemanagers(clientele::Clientele) = [ m for m in managers(clientele)
+                                         if nfree(clientele)[m] > 0 ]
 function managers!(c::Clientele, ms::Vector{InsuranceWorker})
     for m in ms
         c.managers[m] = Task[]

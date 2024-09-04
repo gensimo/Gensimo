@@ -4,7 +4,7 @@ using Random
 # Make a Clientele.
 clientele = Clientele(3)
 # Generate some InsuranceWorkers.
-cas = [ ClientAssistant(i, (0, 0), (0, 0), rand(1000:10000)) for i in 1:4 ]
+cas = [ ClientAssistant(i, (0, 0), (0, 0), rand(30:50)) for i in 1:4 ]
 # Add the InsuranceWorkers to the Clientele --- so it is a 'pool'.
 managers!(clientele, cas)
 # Open some request events for the clients.
@@ -20,7 +20,7 @@ end
 ###
 d = load("data/tac-newmarkov.jld2")
 d = Dict( Symbol(x) => d[x] for x in keys(d) )
-baselabour = load("data/tac-baselabour.jld2")["baselabour"]
+daystodecision = load("data/tac-daystodecision.jld2")["daystodecision"]
 
 n = 10
 cs = [ Client( id=i, pos=(0.0, 0.0), vel=(0.0, 0.0)
@@ -30,10 +30,10 @@ cs = [ Client( id=i, pos=(0.0, 0.0), vel=(0.0, 0.0)
                        , claim = Claim() )
                  for i ∈ 1:n ]
 portfolio = Clientele(id=n+5, pos=(0.0, 0.0), vel=(0.0, 0.0))
-managers!(portfolio, [ ClaimsManager(i, (0, 0), (0, 0), rand(1:10))
+managers!(portfolio, [ ClaimsManager(i, (0, 0), (0, 0), rand(25:35))
                        for i in n+1:n+1 ])
 pool = Clientele(id=n+6, pos=(0.0, 0.0), vel=(0.0, 0.0))
-managers!(pool, [ ClientAssistant(i, (0, 0), (0, 0), rand(1:10))
+managers!(pool, [ ClientAssistant(i, (0, 0), (0, 0), rand(30:50))
                   for i in n+2:n+4 ])
 
 

@@ -160,16 +160,15 @@ function step_model!(model) end
 function step_clientele!(clientele::Clientele, model::AgentBasedModel)
     # Make chronologically ordered tasklist, oldest first.
     ts = tasks(clientele)
-    # Get the base number of hours for each service.
-    hs = model.baselabour
+    # Get the base number of hours to decision for each service.
+    hs = model.context[:daystodecision]
     # Keep allocating tasks to random managers with capacity.
-    for manager in managers(clientele)
-
-
+    while anyfree(clientele) && !isempty(ts)
+        # Select a random manager with free slots to allocate to.
+        manager = rand(abmrng(model), freemanagers(clientele))
+        # Allocate the task to the manager.
+        allocate!(clientele, manager => popfirst!(ts))
     end
-
-
-
 end
 
 function step_client!(client::Client, model::AgentBasedModel)
