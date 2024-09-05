@@ -167,7 +167,7 @@ function step_clientele!(clientele::Clientele, model::AgentBasedModel)
         # Select a random manager with free slots to allocate to.
         manager = rand(abmrng(model), freemanagers(clientele))
         # Allocate the task to the manager.
-        allocate!(clientele, manager => popfirst!(ts))
+        allocate!(clientele, manager => popfirst!(ts), date(model))
     end
 end
 

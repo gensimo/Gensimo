@@ -13,28 +13,36 @@ end
 capacity(m::InsuranceWorker) = m.capacity
 
 @kwdef mutable struct Task
+    date::Union{Date, Nothing} = nothing # Date of allocation, not of event.
     request::Request
-    event::Event
+    event::Event # Date of event is request date <= task allocation date.
     client::Client
     allocation::Union{InsuranceWorker, Nothing} = nothing
 end
 
-# const Task = Pair{Request, Pair{Event, Client}}
-
 # Constructors.
 function Task(task::Pair{Request, Pair{Event, Client}})
-    return Task(task.first, task.second.first, task.second.second, nothing)
+    # Deliver an unallocated task.
+    return Task( nothing
+               , task.first
+               , task.second.first
+               , task.second.second
+               , nothing )
 end
 
 # Accessors, mutators and assorted utility functions.
 request(task::Task) = task.request # task.first
 event(task::Task) = task.event # task.second.first
 client(task::Task) = task.client # task.second.second
-date(task::Task) = date(event(task))
+# date(task::Task) = date(event(task))
 Base.isless(t1::Task, t2::Task) = date(event(t1)) < date(event(t2))
-allocate!(task::Task, manager::InsuranceWorker) = task.allocation = manager
+function allocate!(task::Task, manager::InsuranceWorker, date::Date)
+    task.allocation = manager
+    task.date = date
+end
 isallocated(task::Task) = !isnothing(task.allocation)
-
+requestedon(task::Task) = task.event.date
+allocatedon(task::Task) = task.date
 
 function close!(task::Task, date::Date)
     status!(request(task), :closed)
@@ -128,7 +136,10 @@ function tasks(clientele::Clientele)
     return sort([ task for client in clientele for task in tasks(client) ])
 end
 
-function allocate!(clientele::Clientele, m::InsuranceWorker, t::Task)
+function allocate!( clientele::Clientele
+                  , m::InsuranceWorker
+                  , t::Task
+                  , date::Date )
     r = request(t)
     # Do the allocation --- either add to m's list or add m with t.
     if m ∈ managers(clientele)
@@ -139,23 +150,29 @@ function allocate!(clientele::Clientele, m::InsuranceWorker, t::Task)
     # Update the status of the request.
     status!(r, :allocated)
     # Update the task to list the allocation.
-    allocate!(t, m)
+    allocate!(t, m, date)
 end
 
-function allocate!(clientele::Clientele, taskfor::Pair)
+function allocate!(clientele::Clientele, taskfor::Pair, date::Date)
     # Get the manager and the task.
     m, t = taskfor
     # Call the other `allocate!` function.
-    allocate!(clientele, m, t)
+    allocate!(clientele, m, t, date)
 end
 
 function Base.show(io::IO, task::Task)
+    if isallocated(task)
+        s = string("(allocated on ", allocatedon(task), ")")
+    else
+        s = "(waiting)"
+    end
     print( io
-         , date(task), ": "
-         , "<", label(request(task)), ">"
+         , requestedon(task), " ", s
          , " for "
          , name(personalia(client(task)))
          , " (ID: ", client(task).id, ")"
+         , "\n\t"
+         , "<", label(request(task)), ">"
          )
 end
 
