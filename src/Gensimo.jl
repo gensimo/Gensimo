@@ -66,6 +66,7 @@ export baseplot, gplot, datesplot,
 # Include and export essentials from processes.jl.
 include("processes.jl")
 export initialise, simulate!,
+       clienteles, clientele,
        client_step!, agent_step!, model_step!,
        stap, walk, nrequests, requests,
        nevents, cost, nactive, workload,

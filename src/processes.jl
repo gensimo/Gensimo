@@ -63,6 +63,20 @@ function clienteles(model::AgentBasedModel)
     return model.clienteles
 end
 
+function clientele(manager::InsuranceWorker, model::AgentBasedModel)
+    for clientele in clienteles(model)
+        for manager′ in managers(clientele)
+            if manager′ == manager
+                return clientele
+            end
+        end
+    end
+end
+
+function tasks(manager::InsuranceWorker, model::AgentBasedModel)
+    return allocations(clientele(manager, model))[manager]
+end
+
 function portfolios(model::AgentBasedModel)
     return [ p for p in clienteles(model) if p |> isportfolio ]
 end
@@ -147,15 +161,26 @@ function position(client::Client, model::AgentBasedModel)
 end
 
 function step_agent!(agent, model)
+    # Client step --- requests etc.
     if agent isa Client
         step_client!(agent, model)
     end
+    # Clientele step --- task allocation.
     if agent isa Clientele
         step_clientele!(agent, model)
+    end
+    # Manager step --- processing requests.
+    if agent isa InsuranceWorker
+        step_manager!(agent, model)
     end
 end
 
 function step_model!(model) end
+
+function step_manager!(manager::InsuranceWorker, model::AgentBasedModel)
+    # Get the manager's allocated tasks.
+    ts = tasks(manager, model)
+end
 
 function step_clientele!(clientele::Clientele, model::AgentBasedModel)
     # Make chronologically ordered tasklist, oldest first.
@@ -390,7 +415,7 @@ function requests(client::Client, model::AgentBasedModel)
     else
         order = 1
     end
-    # Get order-length tail of request sequence.
+    # Add nrs requests to the rs list.
     rs = label.(requests(client))
     for r ∈ 1:nrs
         # Fill the from Tuple with the corresponding requests --- if any.
