@@ -178,15 +178,36 @@ end
 function step_model!(model) end
 
 function step_manager!(manager::InsuranceWorker, model::AgentBasedModel)
+    # Today's date as per the model's calendar.
+    today = date(model)
+    # Get the number of days grace period.
+    grace = Day(model.context[:graceperiod])
+    # Get the probability of approval.
+    p = model.context[:approvalrate]
     # Get the manager's allocated tasks.
     ts = tasks(manager, model)
+    # Get the base number of hours to decision for each service.
+    days = model.context[:daystodecision]
+    # For each task, check if it is overdue and process it accordingly.
+    for t in ts
+        # How many days to decision on average for this service request?
+        ndays = round(Int, days[label(request(t))])
+        # Overdue? Counting from allocation, which is later than request date.
+        if today - allocatedon(t) >= Day(ndays)
+            # If _requested_ within grace period, just approve.
+            if today - requestedon(t) <= grace
+                # TODO: Approve the request.
+            else
+                # TODO: Approve with probability p or deny.
+            end
+            # TODO: Close the request and the task.
+        end
+    end
 end
 
 function step_clientele!(clientele::Clientele, model::AgentBasedModel)
     # Make chronologically ordered tasklist, oldest first.
     ts = tasks(clientele)
-    # Get the base number of hours to decision for each service.
-    hs = model.context[:daystodecision]
     # Keep allocating tasks to random managers with capacity.
     while anyfree(clientele) && !isempty(ts)
         # Select a random manager with free slots to allocate to.
