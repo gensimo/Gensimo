@@ -191,13 +191,14 @@ function step_manager!(manager::InsuranceWorker, model::AgentBasedModel)
     # For each task, check if it is overdue and process it accordingly.
     for t in ts
         # How many days to decision on average for this service request?
-        ndays = round(Int, days[label(request(t))])
+        ndays = Day(round(Int, days[label(request(t))]))
         # Overdue? Counting from allocation, which is later than request date.
-        if today - allocatedon(t) >= Day(ndays)
+        if today - allocatedon(t) >= ndays
             # If _requested_ within grace period, just approve.
             if today - requestedon(t) <= grace
                 # TODO: Approve the request.
             else
+                # TODO: Put in deliberation loop. Make dependent on the rarity of the request made?
                 # TODO: Approve with probability p or deny.
             end
             # TODO: Close the request and the task.
