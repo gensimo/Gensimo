@@ -195,13 +195,20 @@ function step_manager!(manager::InsuranceWorker, model::AgentBasedModel)
         # Overdue? Counting from allocation, which is later than request date.
         if today - allocatedon(t) >= ndays
             # If _requested_ within grace period, just approve.
-            if today - requestedon(t) <= grace
-                # TODO: Approve the request.
+            if requestedon(t) - dayzero(client(t)) <= grace
+                # Approve, log in event, request and clear from task list.
+                close!(t, today, status=:approved)
             else
-                # TODO: Put in deliberation loop. Make dependent on the rarity of the request made?
-                # TODO: Approve with probability p or deny.
+                # TODO: Put in deliberation loop.
+                # TODO: Make d-loop dependent on the rarity of the request made?
+                # Flip a virtual, weighted coin.
+                approved = rand(abmrng(model), Bernoulli(p))
+                if approved
+                    close!(t, today, status=:approved)
+                else
+                    close!(t, today, status=:denied)
+                end
             end
-            # TODO: Close the request and the task.
         end
     end
 end
@@ -238,6 +245,7 @@ function step_client!(client::Client, model::AgentBasedModel)
             push!(rand(abmrng(model), pools(model)), client)
         end
     end
+
     # # Any requests due today from a plan in the client's package?
     # plans = client |> planned(date)
     # for plan in plans
@@ -250,23 +258,15 @@ function step_client!(client::Client, model::AgentBasedModel)
         e = Event(date(model), Request(service))
         push!(client, e)
     end
-        # TODO: event, feedback = process(client, model; request=service)
-        # TODO: Log events and do things with feedback.
 
-    # # Client's requests are processed. Add events to claim and use feedback.
-    # for event in events # Adding events from processed requests, if any.
-        # client += event
-    # end
-    # if feedback |> !isnothing # Make use of feedback, if any.
-        # # Adjust the request timing and volume (hazard rate).
-        # new_λ = stap( 1, λ(client)
-                    # ; u = feedback.uptick
-                    # , d = feedback.downtick
-                    # , p = feedback.probability )
-        # update_client!(client, date(model), new_λ)
-        # # Adjust the probabilities for the kind of next service requested.
-        # # TODO: Adjust the Markov Chain or distributions in the `Context`.
-    # end
+    # Recovery and iatrogenics. For now, just binomial options style recovery.
+    # TODO: Improve.
+    new_λ = stap( 1, λ(client)
+                # ; u = feedback.uptick
+                # , d = feedback.downtick
+                # , p = feedback.probability
+                )
+    update_client!(client, date(model), new_λ)
 end
 
 function tier(client::Client, model::AgentBasedModel)

@@ -12,47 +12,10 @@ end
 
 capacity(m::InsuranceWorker) = m.capacity
 
-@kwdef mutable struct Task
-    date::Union{Date, Nothing} = nothing # Date of allocation, not of event.
-    request::Request
-    event::Event # Date of event is request date <= task allocation date.
-    client::Client
-    allocation::Union{InsuranceWorker, Nothing} = nothing
-end
-
-# Constructors.
-function Task(task::Pair{Request, Pair{Event, Client}})
-    # Deliver an unallocated task.
-    return Task( nothing
-               , task.first
-               , task.second.first
-               , task.second.second
-               , nothing )
-end
-
-# Accessors, mutators and assorted utility functions.
-request(task::Task) = task.request # task.first
-event(task::Task) = task.event # task.second.first
-client(task::Task) = task.client # task.second.second
-# date(task::Task) = date(event(task))
-Base.isless(t1::Task, t2::Task) = date(event(t1)) < date(event(t2))
-function allocate!(task::Task, manager::InsuranceWorker, date::Date)
-    task.allocation = manager
-    task.date = date
-end
-isallocated(task::Task) = !isnothing(task.allocation)
-requestedon(task::Task) = task.event.date
-allocatedon(task::Task) = task.date
-
-function close!(task::Task, date::Date)
-    status!(request(task), :closed)
-    term!(event(task), date)
-end
-
 # @kwdef mutable struct Clientele
 @agent struct Clientele(ContinuousAgent{2, Float64})
     clients::Vector{Client} = Client[]
-    managers::Dict{InsuranceWorker,Vector{Task}} = Dict()
+    managers::Dict{InsuranceWorker, Vector} = Dict()
 end
 
 # Constructors.
@@ -81,6 +44,53 @@ end
 anyfree(clientele::Clientele) = nfree(clientele; total=true) > 0
 freemanagers(clientele::Clientele) = [ m for m in managers(clientele)
                                          if nfree(clientele)[m] > 0 ]
+# function clear!(clientele::Clientele, task::Task)
+    # # Look for the task in each manager's allocations.
+    # for manager in managers(clientele)
+        # # Keep only the other tasks.
+        # filter!(!=(task), allocations(clientele)[manager])
+    # end
+# end
+
+@kwdef mutable struct Task
+    date::Union{Date, Nothing} = nothing # Date of allocation, not of event.
+    request::Request
+    event::Event # Date of event is request date <= task allocation date.
+    client::Client
+    allocation:: Union{Tuple{Clientele, InsuranceWorker}, Nothing} = nothing
+end
+
+# Constructors.
+function Task(task::Pair{Request, Pair{Event, Client}})
+    # Deliver an unallocated task.
+    return Task( nothing
+               , task.first
+               , task.second.first
+               , task.second.second
+               , nothing )
+end
+
+# Accessors, mutators and assorted utility functions.
+request(task::Task) = task.request # task.first
+event(task::Task) = task.event # task.second.first
+client(task::Task) = task.client # task.second.second
+clientele(task::Task) = task.allocation[1]
+manager(task::Task) = task.allocation[2]
+Base.isless(t1::Task, t2::Task) = date(event(t1)) < date(event(t2))
+isallocated(task::Task) = !isnothing(task.allocation)
+requestedon(task::Task) = task.event.date
+allocatedon(task::Task) = task.date
+
+function close!(task::Task, date::Date; status)
+    # Close the request --- status is :approved or :denied.
+    status!(request(task), status) # Log request status in Request.
+    term!(event(task), date) # Log the closing date on Event.
+    # Close the task --- filter out task to be closed from manager's task list.
+    filter!(!=(task), allocations(clientele(task))[manager(task)])
+    # Return the corresponding event for visual check in REPL.
+    return event(task)
+end
+
 function managers!(c::Clientele, ms::Vector{InsuranceWorker})
     for m in ms
         c.managers[m] = Task[]
@@ -137,20 +147,21 @@ function tasks(clientele::Clientele)
 end
 
 function allocate!( clientele::Clientele
-                  , m::InsuranceWorker
-                  , t::Task
+                  , manager::InsuranceWorker
+                  , task::Task
                   , date::Date )
-    r = request(t)
+    r = request(task)
     # Do the allocation --- either add to m's list or add m with t.
-    if m ∈ managers(clientele)
-        push!(allocations(clientele)[m], t)
+    if manager ∈ managers(clientele)
+        push!(allocations(clientele)[manager], task)
     else
-        allocations(clientele)[m] = [t]
+        allocations(clientele)[manager] = [task]
     end
     # Update the status of the request.
     status!(r, :allocated)
     # Update the task to list the allocation.
-    allocate!(t, m, date)
+    task.allocation = clientele, manager
+    task.date = date
 end
 
 function allocate!(clientele::Clientele, taskfor::Pair, date::Date)
