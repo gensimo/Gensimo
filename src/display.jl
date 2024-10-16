@@ -426,24 +426,26 @@ function conductorplot(conductor::Conductor)
                      , linked=collect(1:4) )
 end
 
-function dashboard(model::AgentBasedModel)
-    # To make heatmaps.
-    function heatmap(model)
-        heat = nactive(model)
-        return [ heat heat
-               ; heat heat ]
+function heatmap(model::AgentBasedModel)
+    heat = nactive(model)
+    return [ heat heat
+            ; heat heat ]
+end
+
+function agent_marker(agent, model)
+    if typeof(agent) == InsuranceWorker
+        return '⋄'
     end
+    if typeof(agent) == Client
+        return isactive(agent, date(model)-Day(1)) ? '□' : '*'
+    end
+end
+
+function dashboard_costs(model::AgentBasedModel)
+    agent_marker(agent) = agent_marker(agent, model)
     intcumcost(model) = round(Integer, cost(model; cumulative=true))
     intcost(model) = round(Integer, cost(model))
     intworkload(model) = round(Integer, workload(model; cumulative=true))
-    function agent_marker(agent)
-        if typeof(agent) == Provider
-            return '⋄'
-        end
-        if typeof(agent) == Client
-            return isactive(agent, date(model)-Day(1)) ? '□' : '*'
-        end
-    end
     # Pass the relevant options to the `abmplot()` function.
     fig, abmobs = abmexploration( model
                                 ; add_controls = true
@@ -465,4 +467,59 @@ function dashboard(model::AgentBasedModel)
     display(fig)
     # Deliver.
     return fig, abmobs
+end
+
+function dashboard_fte(model::AgentBasedModel)
+    function heat(model::AgentBasedModel)
+        h = nactive(model)
+        return [ h h
+               ; h h ]
+    end
+    function agent_marker(agent)
+        if typeof(agent) == InsuranceWorker
+            return '⋄'
+        elseif typeof(agent) == Client
+            return isactive(agent, date(model)-Day(1)) ? '□' : '*'
+        elseif typeof(agent) == Provider
+            return '⋅'
+        else # Then: typeof(agent) == Clientele
+            return ' '
+        end
+    end
+    # Specialise the agent_marker() function.
+    # agent_marker(agent) = agent_marker(agent, model)
+    # Pass the relevant options to the `abmplot()` function.
+    fig, abmobs = abmexploration( model
+                                ; add_controls = true
+                                , adjust_aspect = false
+                                , agent_marker
+                                , agent_size=25
+                                , heatarray = heat
+                                , heatkwargs = ( colorrange = (0, 100)
+                                               , colormap = :thermal )
+                                , mdata = [ nactive
+                                          , nevents
+                                          , ntasks
+                                          , nopen
+                                          ]
+                                , mlabels = [ "active clients [ # ]"
+                                            , "number of events [ # ]"
+                                            , "allocated tasks [ # ]"
+                                            , "requests waiting [ # ]"
+                                            ]
+                                )
+    # Show me what you got.
+    display(fig)
+    # Deliver.
+    return fig, abmobs
+end
+
+function dashboard(model::AgentBasedModel; plots=:fte)
+    if plots == :fte
+        return dashboard_fte(model)
+    elseif plots == :cost
+        return dashboard_costs(model)
+    else
+        error("Unknown plots option: ", plots)
+    end
 end

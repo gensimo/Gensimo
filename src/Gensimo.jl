@@ -56,13 +56,6 @@ export Conductor, clients, nclients, context, epoch, eschaton, timeline,
        nproviders, nagents
 export Context, distros, requests, segments, states, probabilities
 
-# Include and export essentials from display.jl.
-include("display.jl")
-export baseplot, gplot, datesplot,
-       costseriesplot, costseriesplot_ensemble, costseriesplot_tiled,
-       datesplots, clientplot, conductorplot, nactiveplot,
-       dashboard
-
 # Include and export essentials from processes.jl.
 include("processes.jl")
 export initialise, simulate!,
@@ -70,8 +63,16 @@ export initialise, simulate!,
        client_step!, agent_step!, model_step!,
        stap, walk, nrequests, requests,
        nevents, cost, nactive, workload,
+       ntasks, nopen,
        next_request, next_requests,
        portfolios, pools
+
+# Include and export essentials from display.jl.
+include("display.jl")
+export baseplot, gplot, datesplot,
+       costseriesplot, costseriesplot_ensemble, costseriesplot_tiled,
+       datesplots, clientplot, conductorplot, nactiveplot,
+       dashboard
 
 # Export everything this module defines up to here.
 for n in names(@__MODULE__; all=true)

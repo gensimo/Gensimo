@@ -77,6 +77,32 @@ function tasks(manager::InsuranceWorker, model::AgentBasedModel)
     return allocations(clientele(manager, model))[manager]
 end
 
+function ntasks(clientele::Clientele)
+    # Return number of allocated tasks --- i.e. everything in the queues.
+    return sum([ length(allocations(clientele)[manager])
+                 for manager in managers(clientele) ])
+end
+
+function ntasks(model::AgentBasedModel)
+    # Return number of allocated tasks --- i.e. everything in the queues.
+    return sum([ ntasks(clientele) for clientele in clienteles(model) ])
+end
+
+function nopen(clientele::Clientele)
+    # Return number of open requests --- i.e. everything waiting to be queued.
+    if isempty(clients(clientele))
+        return 0
+    else
+        return sum([ length(requests(client; status=:open))
+                     for client in clientele ])
+    end
+end
+
+function nopen(model::AgentBasedModel)
+    # Return number of open requests --- i.e. everything waiting to be queued.
+    return sum([ nopen(clientele) for clientele in clienteles(model) ])
+end
+
 function portfolios(model::AgentBasedModel)
     return [ p for p in clienteles(model) if p |> isportfolio ]
 end
@@ -88,6 +114,11 @@ end
 function providers(model::AgentBasedModel)
     agents = model |> allagents |> collect |> values
     return [ agent for agent in agents if typeof(agent) == Provider ]
+end
+
+function managers(model::AgentBasedModel)
+    agents = model |> allagents |> collect |> values
+    return [ agent for agent in agents if typeof(agent) == InsuranceWorker ]
 end
 
 function nevents(model::AgentBasedModel; cumulative=false)
@@ -261,11 +292,10 @@ function step_client!(client::Client, model::AgentBasedModel)
 
     # Recovery and iatrogenics. For now, just binomial options style recovery.
     # TODO: Improve.
-    new_λ = stap( 1, λ(client)
+    new_λ = stap( 1, λ(client) )
                 # ; u = feedback.uptick
                 # , d = feedback.downtick
                 # , p = feedback.probability
-                )
     update_client!(client, date(model), new_λ)
 end
 

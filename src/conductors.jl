@@ -118,6 +118,49 @@ function Conductor( epoch::Date, eschaton::Date
     return Conductor(Context(), epoch, eschaton, nclients, cohort=cohort)
 end
 
+function Conductor( context
+                  ; epoch, eschaton
+                  , nclients
+                  , nportfolios
+                  , nmanagersperpool )
+    # Number of pools.
+    npools = length(nmanagersperpool)
+    # Keep track of the agent IDs.
+    index = 0
+    # Generate the clients
+    clients = [ Client( id=i, pos=(0.0, 0.0), vel=(0.0, 0.0)
+                      , personalia = Personalia()
+                      , history = [ ( rand(epoch:eschaton)
+                                    , State(rand(12))) ]
+                      , claim = Claim() )
+                for i ∈ 1:nclients ]
+    # Update index.
+    index += nclients
+    # Generate the portfolios.
+    portfolios = [ Clientele(id=index+i, pos=(0.0, 0.0), vel=(0.0, 0.0))
+                   for i in 1:nportfolios ]
+    # Update index with number of Clientele agents.
+    index += nportfolios
+    # One manager per portfolio.
+    for portfolio in portfolios
+        index += 1 # Update index for each manager also.
+        managers!( portfolio
+                 , [ ClaimsManager(index, (0, 0), (0, 0), rand(25:35)) ])
+    end
+    pools = [ Clientele(id=index+i, pos=(0.0, 0.0), vel=(0.0, 0.0))
+              for i in 1:npools ]
+    # Update index with number of Clientele agents.
+    index += npools
+    # Several managers per pool --- given by `nmanagersperpool` list.
+    for (n, pool) in enumerate(pools)
+        managers!(pool, [ ClientAssistant(index+i, (0, 0), (0, 0), rand(30:50))
+                          for i in 1:nmanagersperpool[n] ])
+    end
+    return Conductor(; context, epoch, eschaton
+                    , clients
+                    , clienteles = [ pools..., portfolios... ] )
+end
+
 function nactive(conductor::Conductor, date::Date; tier=:ignore)
     if tier==:ignore
         return sum([ isactive(client, date) for client in clients(conductor) ])
