@@ -407,53 +407,6 @@ function request_liaising!( client::Client, model::AgentBasedModel
     push!(client, event)
 end
 
-function _requests(client::Client, model::AgentBasedModel)
-    # Get the number of requests for today's hazard rate.
-    n = nrequests(client, abmrng(model))
-    # TODO: Bogus request list.
-    requests = []
-    for i in 1:n
-        if Bernoulli(.3) |> rand # Flip a weighted coin.
-            # Coin says: request for Allied Health service.
-            push!(requests, "Allied Health Service")
-        else
-            # Coin says: request for something else.
-            push!(requests, "General Service (not Allied Health)")
-        end
-    end
-    return requests
-end
-
-function next_request(client::Client, model::AgentBasedModel)
-    # Get the necessary data.
-    tolist = model.context.request_distros["tolist"]
-    fromlist = model.context.request_distros["fromlist"]
-    T = model.context.request_distros["T"]
-    # Deduce order of Markov Chain.
-    if fromlist[1] isa Tuple
-        order = length(fromlist[1])
-    else
-        order = 1
-    end
-    # Get order-length tail of request sequence.
-    rs = label.(requests(client))
-    # Fill the from Tuple with the corresponding requests --- if any.
-    n = minimum([order, length(rs)])
-    from = Tuple(i <= n ? rs[end - (i-1)] : nothing for i ∈ reverse(1:order))
-    # If the order is one, no need to wrap from in a Tuple.
-    if length(from) == 1
-        from = from[1]
-    end
-    # Turn from into an integer index.
-    i = findfirst(==(from), fromlist)
-    # Get the probability distribution.
-    ps = Distributions.Categorical(T[i, :])
-    # Draw from the probability distribution.
-    j = rand(abmrng(model), ps)
-    # Deliver.
-    return tolist[j]
-end
-
 function requests(client::Client, model::AgentBasedModel)
     # Get the number of requests for today's hazard rate.
     nrs = nrequests(client, abmrng(model))

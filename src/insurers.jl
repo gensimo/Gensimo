@@ -12,7 +12,6 @@ end
 
 capacity(m::InsuranceWorker) = m.capacity
 
-# @kwdef mutable struct Clientele
 @agent struct Clientele(ContinuousAgent{2, Float64})
     clients::Vector{Client} = Client[]
     managers::Dict{InsuranceWorker, Vector} = Dict()
@@ -44,13 +43,6 @@ end
 anyfree(clientele::Clientele) = nfree(clientele; total=true) > 0
 freemanagers(clientele::Clientele) = [ m for m in managers(clientele)
                                          if nfree(clientele)[m] > 0 ]
-# function clear!(clientele::Clientele, task::Task)
-    # # Look for the task in each manager's allocations.
-    # for manager in managers(clientele)
-        # # Keep only the other tasks.
-        # filter!(!=(task), allocations(clientele)[manager])
-    # end
-# end
 
 @kwdef mutable struct Task
     date::Union{Date, Nothing} = nothing # Date of allocation, not of event.

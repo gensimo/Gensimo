@@ -155,6 +155,8 @@ function Conductor( context
     for (n, pool) in enumerate(pools)
         managers!(pool, [ ClientAssistant(index+i, (0, 0), (0, 0), rand(30:50))
                           for i in 1:nmanagersperpool[n] ])
+        # Update index with number of managers in this pool.
+        index += nmanagersperpool[n]
     end
     return Conductor(; context, epoch, eschaton
                     , clients
