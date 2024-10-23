@@ -18,6 +18,10 @@ function asks(provider::Provider)
     return provider.menu |> values |> collect
 end
 
+function provides(provider::Provider, service::String)
+    return service ∈ services(provider) ? true : false
+end
+
 function capacity(provider::Provider)
     return provider.capacity
 end

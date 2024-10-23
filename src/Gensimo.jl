@@ -43,7 +43,7 @@ export Clientele, InsuranceWorker, ClientAssistant, ClaimsManager,
 
 # Include and export essentials from providers.jl.
 include("providers.jl")
-export Provider, services, asks, capacity, capacity!
+export Provider, services, asks, provides, capacity, capacity!
 
 # Include and export essentials from conductors.jl.
 include("conductors.jl")

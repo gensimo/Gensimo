@@ -286,8 +286,11 @@ function step_client!(client::Client, model::AgentBasedModel)
 
     # Client on-scheme and on-board. Open events for today's requests, if any.
     for service in requests(client, model)
-        e = Event(date(model), Request(service))
-        push!(client, e)
+        if service ∈ model.context[:alliedhealthservices]
+        else
+            e = Event(date(model), Request(service))
+            push!(client, e)
+        end
     end
 
     # Recovery and iatrogenics. For now, just binomial options style recovery.
