@@ -149,6 +149,11 @@ function nactive(model::AgentBasedModel)
     return sum([ isactive(client, date(model)) for client in clients ])
 end
 
+function provides(model::AgentBasedModel, service::String)
+    return [ provider for provider in providers(model)
+                      if provides(provider, service) ]
+end
+
 function cost(client::Client, model::AgentBasedModel; cumulative=false)
     datum = date(model) - Day(1)
     totalcost = 0
@@ -286,8 +291,18 @@ function step_client!(client::Client, model::AgentBasedModel)
 
     # Client on-scheme and on-board. Open events for today's requests, if any.
     for service in requests(client, model)
+        # If client has a plan for this service, ignore the request.
+        if planleft(client, date; service)
+        elseif
         # An allied health service request spawns a process with a Provider.
-        if service ∈ model.context[:alliedhealthservices]
+        elseif service ∈ model.context[:alliedhealthservices]
+            # If this service is already in a plan/package, skip it.
+            # Find a random provider who can offer the service.
+            provider = rand(abmrng(model), provides(model, service))
+            # How many of these services will the client expect to need?
+            n = nexpected(client, model; service)
+            # Have provider offer a package over- or underservicing this number.
+            #
 
         # Other requests open events and await allocation on the relevant queue.
         else
@@ -328,6 +343,22 @@ function segment!(client::Client, model::AgentBasedModel)
     e = Event(date(model), s)
     # Add the segmentation event to the client's claim.
     push!(client, e)
+end
+
+function nexpected(client::Client, model::AgentBasedModel; service)
+    # Get current hazard rate.
+    lambda = λ(client)
+    # Compute total expected number of service requests --- quick Monte Carlo.
+    N = [ sum(lambda * walk(100 * 365)) for i ∈ 1:1000 ] |> mean
+    # Find marginal probability of requesting `service`.
+    T = model.context[:T] # Markov transition matrix.
+    tolist = model.context[:tolist] # All requestable services.
+    marginal = sum(T, dims=1) # Sum out the `fromlist` dimension, i.e. dims=1.
+    index = findfirst(==(service), tolist) # Index of `service` in the list.
+    p = marginal[index] # The desired marginal probability of `service`.
+    # Compute expected number of requests for `service` given the clients' λ.
+    n = round(Int64, N * p) # Probability as frequency.
+    return n
 end
 
 function process( client, model

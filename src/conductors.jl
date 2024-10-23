@@ -163,6 +163,11 @@ function Conductor( context
                     , clienteles = [ pools..., portfolios... ] )
 end
 
+function provides(conductor::Conductor, service::String)
+    return [ provider for provider in providers(conductor)
+                      if provides(provider, service) ]
+end
+
 function nactive(conductor::Conductor, date::Date; tier=:ignore)
     if tier==:ignore
         return sum([ isactive(client, date) for client in clients(conductor) ])

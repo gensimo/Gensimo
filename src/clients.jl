@@ -73,8 +73,8 @@ label(segment::Segment) = segment.label
 struct Package
     label::String # The name of the package.
     fromto::Tuple{Date, Date} # First and last day the package is active.
-    cover::Dict{String, Real} # Label and number of services covered.
-    plans::Dict{String, Tuple{Date, Period}} # Label, 1st day and frequency.
+    cover::Union{Dict{String, Real}, Nothing} # Label and # of services covered.
+    plans::Union{Dict{String, Tuple{Date, Period}}, Nothing} # Label, timing.
 end
 
 label(package::Package) = package.label
@@ -134,6 +134,18 @@ function planleft(package::Package, plan::String, date::Date)
                        if candidate >= date ]
 end
 planleft(service::String, date::Date) = p -> planleft(p, service, date)
+
+function inplan(client::Client, service::String, date::Date)
+    # Get client's packages, if any.
+    ps = packages(client)
+    # If none, done.
+    if isempty(ps)
+        return false
+    else
+
+
+end
+
 
 function Base.in(service::String, package::Package)
     return ( service ∈ package |> cover |> keys
@@ -334,6 +346,16 @@ function planned(client::Client, date::Date)
     return plans
 end
 planned(date::Date) = client -> planned(client, date)
+
+function plans(client::Client)
+    plans = []
+    if isempty(packages(client))
+        return plans
+    else
+        for package in packages(client)
+
+
+end
 
 function iscovered(client::Client, service::String, date::Date)
     return [ iscovered(p, service, date) for p in packages(client) ] |> any

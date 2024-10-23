@@ -52,7 +52,7 @@ export Conductor, clients, nclients, context, epoch, eschaton, timeline,
        cost_average, request_cost,
        client, event,
        clienteles, nclienteles, nmanagers,
-       providers, agents,
+       providers, provides, agents,
        nproviders, nagents
 export Context, distros, requests, segments, states, probabilities
 
@@ -63,7 +63,7 @@ export initialise, simulate!,
        client_step!, agent_step!, model_step!,
        stap, walk, nrequests, requests,
        nevents, cost, nactive, workload,
-       ntasks, nopen,
+       ntasks, nopen, provides,
        next_request, next_requests,
        portfolios, pools
 
