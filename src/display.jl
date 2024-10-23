@@ -433,7 +433,7 @@ function heatmap(model::AgentBasedModel)
 end
 
 function agent_marker(agent, model)
-    if typeof(agent) == InsuranceWorker
+    if typeof(agent) == Manager
         return '⋄'
     end
     if typeof(agent) == Client
@@ -476,7 +476,7 @@ function dashboard_fte(model::AgentBasedModel)
                ; h h ]
     end
     function agent_marker(agent)
-        if typeof(agent) == InsuranceWorker
+        if typeof(agent) == Manager
             return '⋄'
         elseif typeof(agent) == Client
             return isactive(agent, date(model)-Day(1)) ? '□' : '*'

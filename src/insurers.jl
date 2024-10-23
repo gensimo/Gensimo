@@ -1,20 +1,24 @@
 using Agents
 
 
-@multiagent struct InsuranceWorker(ContinuousAgent{2, Float64})
-    @subagent struct ClientAssistant
-        capacity::Int64 # Number of concurrent tasks the worker can work on.
-    end
-    @subagent struct ClaimsManager
-        capacity::Int64 # Number of concurrent tasks the worker can work on.
-    end
+# @multiagent struct InsuranceWorker(ContinuousAgent{2, Float64})
+    # @subagent struct ClientAssistant
+        # capacity::Int64 # Number of concurrent tasks the worker can work on.
+    # end
+    # @subagent struct ClaimsManager
+        # capacity::Int64 # Number of concurrent tasks the worker can work on.
+    # end
+# end
+
+@agent struct Manager(ContinuousAgent{2, Float64})
+    capacity::Int64 # Number of concurrent tasks this manager can work on.
 end
 
-capacity(m::InsuranceWorker) = m.capacity
+capacity(m::Manager) = m.capacity
 
 @agent struct Clientele(ContinuousAgent{2, Float64})
     clients::Vector{Client} = Client[]
-    managers::Dict{InsuranceWorker, Vector} = Dict()
+    managers::Dict{Manager, Vector} = Dict()
 end
 
 # Constructors.
@@ -49,7 +53,7 @@ freemanagers(clientele::Clientele) = [ m for m in managers(clientele)
     request::Request
     event::Event # Date of event is request date <= task allocation date.
     client::Client
-    allocation:: Union{Tuple{Clientele, InsuranceWorker}, Nothing} = nothing
+    allocation:: Union{Tuple{Clientele, Manager}, Nothing} = nothing
 end
 
 # Constructors.
@@ -83,7 +87,7 @@ function close!(task::Task, date::Date; status)
     return event(task)
 end
 
-function managers!(c::Clientele, ms::Vector{InsuranceWorker})
+function managers!(c::Clientele, ms::Vector{Manager})
     for m in ms
         c.managers[m] = Task[]
     end
@@ -139,7 +143,7 @@ function tasks(clientele::Clientele)
 end
 
 function allocate!( clientele::Clientele
-                  , manager::InsuranceWorker
+                  , manager::Manager
                   , task::Task
                   , date::Date )
     r = request(task)

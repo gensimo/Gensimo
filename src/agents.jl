@@ -24,18 +24,18 @@ daystodecision = load("data/tac-daystodecision.jld2")["daystodecision"]
 costs = load("data/tac-costs.jld2")["costs"]
 alliedhealthservices = load("data/tac-alliedhealth.jld2")["alliedhealth"]
 
-n = 10
-cs = [ Client( id=i, pos=(0.0, 0.0), vel=(0.0, 0.0)
-                       , personalia = Personalia()
-                       , history = [ ( rand(Date(2020):Date(2021))
-                                     , State(rand(12))) ]
-                       , claim = Claim() ) for i ∈ 1:n ]
-portfolio = Clientele(id=n+5, pos=(0.0, 0.0), vel=(0.0, 0.0))
-managers!(portfolio, [ ClaimsManager(i, (0, 0), (0, 0), rand(25:35))
-                       for i in n+1:n+1 ])
-pool = Clientele(id=n+6, pos=(0.0, 0.0), vel=(0.0, 0.0))
-managers!(pool, [ ClientAssistant(i, (0, 0), (0, 0), rand(30:50))
-                  for i in n+2:n+4 ])
+# n = 10
+# cs = [ Client( id=i, pos=(0.0, 0.0), vel=(0.0, 0.0)
+                       # , personalia = Personalia()
+                       # , history = [ ( rand(Date(2020):Date(2021))
+                                     # , State(rand(12))) ]
+                       # , claim = Claim() ) for i ∈ 1:n ]
+# portfolio = Clientele(id=n+5, pos=(0.0, 0.0), vel=(0.0, 0.0))
+# managers!(portfolio, [ ClaimsManager(i, (0, 0), (0, 0), rand(25:35))
+                       # for i in n+1:n+1 ])
+# pool = Clientele(id=n+6, pos=(0.0, 0.0), vel=(0.0, 0.0))
+# managers!(pool, [ ClientAssistant(i, (0, 0), (0, 0), rand(30:50))
+                  # for i in n+2:n+4 ])
 
 
 

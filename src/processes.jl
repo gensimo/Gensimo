@@ -20,7 +20,7 @@ function initialise( conductor::Conductor
     # Set up the model.
     model = StandardABM( Union{ Client
                               , Clientele
-                              , InsuranceWorker
+                              , Manager
                               , Provider }
                        , space
                        ; properties = conductor
@@ -63,7 +63,7 @@ function clienteles(model::AgentBasedModel)
     return model.clienteles
 end
 
-function clientele(manager::InsuranceWorker, model::AgentBasedModel)
+function clientele(manager::Manager, model::AgentBasedModel)
     for clientele in clienteles(model)
         for manager′ in managers(clientele)
             if manager′ == manager
@@ -73,7 +73,7 @@ function clientele(manager::InsuranceWorker, model::AgentBasedModel)
     end
 end
 
-function tasks(manager::InsuranceWorker, model::AgentBasedModel)
+function tasks(manager::Manager, model::AgentBasedModel)
     return allocations(clientele(manager, model))[manager]
 end
 
@@ -118,7 +118,7 @@ end
 
 function managers(model::AgentBasedModel)
     agents = model |> allagents |> collect |> values
-    return [ agent for agent in agents if typeof(agent) == InsuranceWorker ]
+    return [ agent for agent in agents if typeof(agent) == Manager ]
 end
 
 function nevents(model::AgentBasedModel; cumulative=false)
@@ -201,14 +201,14 @@ function step_agent!(agent, model)
         step_clientele!(agent, model)
     end
     # Manager step --- processing requests.
-    if agent isa InsuranceWorker
+    if agent isa Manager
         step_manager!(agent, model)
     end
 end
 
 function step_model!(model) end
 
-function step_manager!(manager::InsuranceWorker, model::AgentBasedModel)
+function step_manager!(manager::Manager, model::AgentBasedModel)
     # Today's date as per the model's calendar.
     today = date(model)
     # Get the number of days grace period.
@@ -286,7 +286,10 @@ function step_client!(client::Client, model::AgentBasedModel)
 
     # Client on-scheme and on-board. Open events for today's requests, if any.
     for service in requests(client, model)
+        # An allied health service request spawns a process with a Provider.
         if service ∈ model.context[:alliedhealthservices]
+
+        # Other requests open events and await allocation on the relevant queue.
         else
             e = Event(date(model), Request(service))
             push!(client, e)
