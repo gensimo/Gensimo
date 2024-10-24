@@ -135,18 +135,6 @@ function planleft(package::Package, plan::String, date::Date)
 end
 planleft(service::String, date::Date) = p -> planleft(p, service, date)
 
-function inplan(client::Client, service::String, date::Date)
-    # Get client's packages, if any.
-    ps = packages(client)
-    # If none, done.
-    if isempty(ps)
-        return false
-    else
-
-
-end
-
-
 function Base.in(service::String, package::Package)
     return ( service ∈ package |> cover |> keys
              || service ∈ package |> plans |> keys )
@@ -353,8 +341,31 @@ function plans(client::Client)
         return plans
     else
         for package in packages(client)
+            push!(plans, plans(package)...)
+        end
+    end
+    return plans
+end
 
-
+function inplan(client::Client, service::String, date::Date)
+    # Get client's plans, if any.
+    plans = plans(client)
+    # Assume nothing.
+    inplan = false
+    # If none, done.
+    if isempty(ps)
+        return inplan
+    # If there are plans, see if any contains the service.
+    else
+        for plan in plans
+            if service ∈ keys(plan)
+                inplan = true
+                return inplan # If found, might as well break loop right there.
+            end
+        end
+    end
+    # Deliver --- if this point is reached this should be false.
+    return inplan
 end
 
 function iscovered(client::Client, service::String, date::Date)

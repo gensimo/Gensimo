@@ -209,9 +209,15 @@ function step_agent!(agent, model)
     if agent isa Manager
         step_manager!(agent, model)
     end
+    # Provider step --- nothing yet.
+    if agent isa Provider
+        step_provider!(agent, model)
+    end
 end
 
 function step_model!(model) end
+
+function step_provider!(provider::Provider, model::AgentBasedModel) end
 
 function step_manager!(manager::Manager, model::AgentBasedModel)
     # Today's date as per the model's calendar.
@@ -293,7 +299,11 @@ function step_client!(client::Client, model::AgentBasedModel)
     for service in requests(client, model)
         # If client has a plan for this service, ignore the request.
         if planleft(client, date; service)
-        elseif
+            # TODO: Perhaps record in claim? Request status :inplan, cost = 0?
+        # If client has service covered in package, use and update cover.
+        elseif iscovered(client, date; service)
+            # TODO: Set status as :covered and cost = 0 (as cover is paid).
+            # TODO: Decrement cover, if applicable.
         # An allied health service request spawns a process with a Provider.
         elseif service ∈ model.context[:alliedhealthservices]
             # If this service is already in a plan/package, skip it.
@@ -302,9 +312,8 @@ function step_client!(client::Client, model::AgentBasedModel)
             # How many of these services will the client expect to need?
             n = nexpected(client, model; service)
             # Have provider offer a package over- or underservicing this number.
-            #
 
-        # Other requests open events and await allocation on the relevant queue.
+        # Otherwise, open event and await allocation on the relevant queue.
         else
             e = Event(date(model), Request(service))
             push!(client, e)
