@@ -46,7 +46,53 @@ function Base.getindex(provider::Provider, service::String)
     end
 end
 
-function make_provider(menu::Dict{String, Float64}; type=:vanilla)
+function make_provider_template(menu; type=:vanilla)
+    scale(d, f) = Dict(key => f*d[key] for key in keys(d))
+    # Default settings.
+    if type == :vanilla
+        return ( menu=menu             # No over- or undercharging.
+               , capacity=10           # Default capacity.
+               , sfactor=1.0           # No overservicing.
+               , rfactor=1.0           # No iatrogenics.
+               )
+    # Martyrs overservice and undercharge. Iatrogenics: protracted recovery.
+    elseif type == :martyr
+        return ( menu=scale(menu, .75) # Undercharging at 75%
+               , capacity=10           # Default capacity.
+               , sfactor=1.5           # Overservicing by 50%
+               , rfactor=.75           # Reduced recovery at 75%
+               )
+    # Emerging businesses overservice and overcharge. No iatrogenics.
+    elseif type == :emerging
+        return ( menu=scale(menu, 1.25) # Overcharging by 25%
+               , capacity=10            # Default capacity.
+               , sfactor=1.5            # Overservicing by 50%
+               , rfactor=1.0            # No iatrogenics.
+               )
+    # Established businesses overcharge but don't overservice. No iatrogenics.
+    elseif type == :established
+        return ( menu=scale(menu, 1.25) # Overcharging by 25%
+               , capacity=10            # Default capacity.
+               , sfactor=1.0            # No overservicing.
+               , rfactor=1.0            # No iatrogenics.
+               )
+    # Frauds overservice and overcharge. Iatrogenics: impaired recovery.
+    elseif type == :fraud
+        return ( menu=scale(menu, 1.25) # Overcharging by 25%
+               , capacity=10            # Default capacity.
+               , sfactor=1.5            # Overservicing by 50%
+               , rfactor=.75            # Recovery impaired at 75%.
+               )
+    # Incompetents don't overservice or charge. Iatrogenics: impaired recovery.
+    elseif type == :incompetent
+        return ( menu=menu              # No over- or undercharging.
+               , capacity=10            # Default capacity.
+               , sfactor=1.0            # No overservicing.
+               , rfactor=.75            # Recovery impaired at 75%.
+               )
+    else
+        error("Unkown provider type: $type")
+    end
 end
 
 

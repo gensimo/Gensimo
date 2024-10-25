@@ -24,6 +24,9 @@ daystodecision = load("data/tac-daystodecision.jld2")["daystodecision"]
 costs = load("data/tac-costs.jld2")["costs"]
 alliedhealthservices = load("data/tac-alliedhealth.jld2")["alliedhealth"]
 
+# Make some providers of different types.
+
+
 # n = 10
 # cs = [ Client( id=i, pos=(0.0, 0.0), vel=(0.0, 0.0)
                        # , personalia = Personalia()

@@ -43,7 +43,8 @@ export Clientele, Manager, ClientAssistant, ClaimsManager,
 
 # Include and export essentials from providers.jl.
 include("providers.jl")
-export Provider, services, asks, provides, capacity, capacity!
+export Provider, services, asks, provides, capacity, capacity!,
+       make_provider_template
 
 # Include and export essentials from conductors.jl.
 include("conductors.jl")
