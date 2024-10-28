@@ -118,11 +118,13 @@ function Conductor( epoch::Date, eschaton::Date
     return Conductor(Context(), epoch, eschaton, nclients, cohort=cohort)
 end
 
-function Conductor( context
-                  ; epoch, eschaton
-                  , nclients
-                  , nportfolios
-                  , nmanagersperpool )
+function Conductor( context            # Model parameters.
+                  ; epoch, eschaton    # First and last day of simulation.
+                  , nclients           # Number of clients.
+                  , nportfolios        # Number of portfolios (each 1 manager).
+                  , nmanagersperpool   # List: number of managers for each pool.
+                  , providerpopulation # Dict{Symbol, Float64}: type=>frequency.
+                  )
     # Number of pools.
     npools = length(nmanagersperpool)
     # Keep track of the agent IDs.
@@ -158,9 +160,19 @@ function Conductor( context
         # Update index with number of managers in this pool.
         index += nmanagersperpool[n]
     end
+    providers = Provider[]
+    menu = Dict(s=>context[:costs][s] for s in context[:alliedhealthservices])
+    for (i, (key, val)) in enumerate(providerpopulation)
+        kw_post = make_provider_template(menu, type=key)
+        kw_pre = (id=index+i, pos=(0.0, 0.0), vel=(0.0, 0.0))
+        push!(providers, Provider(kw_pre..., kw_post...))
+        index += 1 # Update the index.
+    end
+    context[:providerpopulation] = providerpopulation
     return Conductor(; context, epoch, eschaton
                     , clients
-                    , clienteles = [ pools..., portfolios... ] )
+                    , clienteles = [ pools..., portfolios... ]
+                    , providers )
 end
 
 function provides(conductor::Conductor, service::String)

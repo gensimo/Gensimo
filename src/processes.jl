@@ -33,18 +33,15 @@ function initialise( conductor::Conductor
         add_agent_own_pos!(client, model)
     end
     # Set up the insurance organisation.
-    for clientele in clienteles(conductor)
+    for clientele in clienteles(conductor) # Pools and portfolio environments.
         add_agent!(clientele, model)
-        for manager in managers(clientele)
+        for manager in managers(clientele) # And their managers.
             add_agent!(manager, model)
         end
     end
-    # Add providers. TODO: This needs to be included in the conductor.
-    for p in 1:3
-        menu = Dict("Allied Health Service" => 80.0 + randn(abmrng(model)))
-        capacity = 5 + rand(abmrng(model), -5:5)
-        add_agent!( Provider, model
-                  ; vel=(0.0, 0.0), menu=menu, capacity=capacity )
+    # Add providers.
+    for provider in providers(conductor)
+        add_agent!(provider, model)
     end
     # Deliver.
     return model

@@ -23,9 +23,13 @@ d = Dict( Symbol(x) => d[x] for x in keys(d) )
 daystodecision = load("data/tac-daystodecision.jld2")["daystodecision"]
 costs = load("data/tac-costs.jld2")["costs"]
 alliedhealthservices = load("data/tac-alliedhealth.jld2")["alliedhealth"]
-
-# Make some providers of different types.
-
+menu = Dict(s=>costs[s] for s in alliedhealthservices)
+population = Dict( :vanilla     => .2
+                 , :martyr      => .2
+                 , :emerging    => .2
+                 , :established => .2
+                 , :fraud       => .1
+                 , :incompetent => .1 )
 
 # n = 10
 # cs = [ Client( id=i, pos=(0.0, 0.0), vel=(0.0, 0.0)
