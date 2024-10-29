@@ -70,11 +70,14 @@ end
 tier(segment::Segment) = segment.tier
 label(segment::Segment) = segment.label
 
-struct Package
+@kwdef mutable struct Package
     label::String # The name of the package.
     fromto::Tuple{Date, Date} # First and last day the package is active.
     cover::Union{Dict{String, Real}, Nothing} # Label and # of services covered.
     plans::Union{Dict{String, Tuple{Date, Period}}, Nothing} # Label, timing.
+    cost::Float64 = 0.0 # Monetary cost of the request in e.g. AUD.
+    labour::Float64 = 0.0 # Labour cost of the request in person-hours.
+    status::Symbol = :open # Approved, denied, pending, reopened etc.
 end
 
 label(package::Package) = package.label
@@ -86,11 +89,41 @@ lastday(package::Package) = package.fromto[2]
 isactive(package::Package, date::Date) = ( firstday(package)
                                          <= date
                                          <= lastday(package) )
+labour(package::Package) = package.labour
+labour!(package::Package, l) = package.labour = l
+status(package::Package) = package.status
+status!(package::Package, s::Symbol) = package.status = s
+approved(package::Package) = status(package) == :approved
+cost(package::Package) = approved(package) ? package.cost : 0.0
+cost!(package::Package, c) = package.cost = c
+
+function Package( service::String
+                , nsessions::Integer
+                , firstday::Date
+                , period::Period )
+    # Compute the last day.
+    lastday = firstday + (nsessions - 1) * period
+    # Wrap the plan up.
+    plans = Dict(service=>(firstday, period))
+    # Make a label.
+    label = "Plan for $nsessions sessions of $service."
+    # Deliver the plan in a package.
+    return Package( label=label
+                  , fromto = (firstday, lastday)
+                  , cover = nothing
+                  , plans = plans )
+end
+
 function iscovered(package::Package, service::String, date::Date)
-    # Service is in package, date in package lifetime and service not depleted.
-    return ( service ∈ cover(package) |> keys # Service in package at all?
-             && isactive(package, date)       # Date within life of package?
-             && cover(package)[service] > 0 ) # Not depleted yet?
+    if cover(package) |> isnothing
+        # Package has no cover whatsoever.
+        return false
+    else
+        # Service in package, date in package lifetime and service not depleted.
+        return ( service ∈ cover(package) |> keys # Service in package at all?
+                 && isactive(package, date)       # Date within life of package?
+                 && cover(package)[service] > 0 ) # Not depleted yet?
+    end
 end
 iscovered(service::String, date::Date) = p -> iscovered(p, service, date)
 
@@ -336,39 +369,39 @@ end
 planned(date::Date) = client -> planned(client, date)
 
 function plans(client::Client)
-    plans = []
-    if isempty(packages(client))
-        return plans
-    else
-        for package in packages(client)
-            push!(plans, plans(package)...)
-        end
+    ps = []
+    for package in packages(client)
+        push!(ps, plans(package)...)
     end
-    return plans
+    return ps
 end
 
-function inplan(client::Client, service::String, date::Date)
-    # Get client's plans, if any.
-    plans = plans(client)
-    # Assume nothing.
-    inplan = false
-    # If none, done.
-    if isempty(ps)
-        return inplan
-    # If there are plans, see if any contains the service.
-    else
-        for plan in plans
-            if service ∈ keys(plan)
-                inplan = true
-                return inplan # If found, might as well break loop right there.
-            end
-        end
-    end
-    # Deliver --- if this point is reached this should be false.
-    return inplan
+function inplan(client::Client, date::Date; service)
+    return any([service ∈ planned(client, day) for day ∈ dayzero(client):date ])
 end
 
-function iscovered(client::Client, service::String, date::Date)
+# function inplan(client::Client, date::Date; service)
+    # # Get client's plans, if any.
+    # ps = plans(client)
+    # # Assume nothing.
+    # inplan = false
+    # # If none, done.
+    # if isempty(ps)
+        # return inplan
+    # # If there are plans, see if any contains the service.
+    # else
+        # for p in ps
+            # if service ∈ keys(p)
+                # inplan = true
+                # return inplan # If found, might as well break loop right there.
+            # end
+        # end
+    # end
+    # # Deliver --- if this point is reached this should be false.
+    # return inplan
+# end
+
+function iscovered(client::Client, date::Date; service)
     return [ iscovered(p, service, date) for p in packages(client) ] |> any
 end
 
@@ -553,8 +586,17 @@ function Base.show(io::IO, request::Request)
     print( io, "<", label(request), ">"
          , " @ ", @sprintf "\$%.2f" cost(request)
          , " + ", labour(request), " hours FTE equivalent."
-         , string(" ", titlecase(string(status(request))), ".")
+         , string(" Status: ", string(status(request)), ".")
          )
+end
+
+function Base.show(io::IO, package::Package)
+    print(io, label(package))
+    # TODO: This assumes it is a _plan_ and it provides just one service.
+    service = collect(keys(plans(package)))[1] # The key to the plan.
+    firstday, period = plans(package)[service] # Get starting day and period.
+    print(io, " Every ", period, ", starting ",  firstday, ".")
+    print(io, string(" Status: ", string(status(package)), "."))
 end
 
 function Base.show(io::IO, state::State)

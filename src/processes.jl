@@ -118,6 +118,26 @@ function managers(model::AgentBasedModel)
     return [ agent for agent in agents if typeof(agent) == Manager ]
 end
 
+function type(provider::Provider, model::AgentBasedModel)
+    # Get all the available provider types in this model.
+    types = model.context[:providerpopulation] |> keys |> collect
+    # Obtain the template of this provider to compare with.
+    ptemplate = template(provider)
+    # In case there are no matches.
+    ptype = nothing
+    # Re-construct the allied health service menu of this model.
+    menu = Dict( s => model.context[:costs][s]
+                 for s in model.context[:alliedhealthservices] )
+    # Compare provider template against available types.
+    for type in types
+        if ptemplate == make_provider_template(menu; type)
+            ptype = type # Found!
+        end
+    end
+    # Deliver.
+    return ptype
+end
+
 function nevents(model::AgentBasedModel; cumulative=false)
     clientele = clients(model)
     datum = date(model) - Day(1)
@@ -295,25 +315,55 @@ function step_client!(client::Client, model::AgentBasedModel)
     # Client on-scheme and on-board. Open events for today's requests, if any.
     for service in requests(client, model)
         # If client has a plan for this service, ignore the request.
-        if planleft(client, date; service)
+        if inplan(client, today; service)
             # TODO: Perhaps record in claim? Request status :inplan, cost = 0?
         # If client has service covered in package, use and update cover.
-        elseif iscovered(client, date; service)
+        elseif iscovered(client, today; service)
+            # TODO: Packages with cover not used at present.
             # TODO: Set status as :covered and cost = 0 (as cover is paid).
             # TODO: Decrement cover, if applicable.
         # An allied health service request spawns a process with a Provider.
         elseif service ∈ model.context[:alliedhealthservices]
             # If this service is already in a plan/package, skip it.
             # Find a random provider who can offer the service.
-            provider = rand(abmrng(model), provides(model, service))
+            ppop = model.context[:providerpopulation]
+            ptype = sample( abmrng(model)
+                          , collect(keys(ppop))
+                          , Weights(collect(values(ppop))) )
+            provider = filter(p->type(p, model)==ptype , providers(model))[1]
             # How many of these services will the client expect to need?
             n = nexpected(client, model; service)
-            # Have provider offer a package over- or underservicing this number.
-
+            # Over- or underservice this number as per provider type.
+            m = round(Int64, n * sfactor(provider))
+            # Maximum number of sessions from the model parameters.
+            cap = model.context[:alliedhealthpackagecap]
+            # Several cases, depending on m.
+            if m < 2 # Then just make it a normal service request.
+                e = Event(today, Request(service))
+                push!(client, e)
+                println(e)
+            elseif m < cap # Package size m.
+                # Package the service.
+                package = Package(service, m, today+Day(1), Week(1))
+                # Package the package.
+                e = Event(today, package)
+                # Add open event to client's claim to await allocation on queue.
+                push!(client, e)
+                println(e)
+            else # Package cap or more expected --- give package of size cap.
+                # Package the service.
+                package = Package(service, cap, today+Day(1), Week(1))
+                # Package the package.
+                e = Event(today, package)
+                # Add open event to client's claim to await allocation on queue.
+                push!(client, e)
+                println(e)
+            end
         # Otherwise, open event and await allocation on the relevant queue.
         else
-            e = Event(date(model), Request(service))
+            e = Event(today, Request(service))
             push!(client, e)
+            println(e)
         end
     end
 
@@ -351,20 +401,24 @@ function segment!(client::Client, model::AgentBasedModel)
     push!(client, e)
 end
 
-function nexpected(client::Client, model::AgentBasedModel; service)
+function nexpected(client::Client, model::AgentBasedModel; service=nothing)
     # Get current hazard rate.
     lambda = λ(client)
     # Compute total expected number of service requests --- quick Monte Carlo.
     N = [ sum(lambda * walk(100 * 365)) for i ∈ 1:1000 ] |> mean
-    # Find marginal probability of requesting `service`.
-    T = model.context[:T] # Markov transition matrix.
-    tolist = model.context[:tolist] # All requestable services.
-    marginal = sum(T, dims=1) # Sum out the `fromlist` dimension, i.e. dims=1.
-    index = findfirst(==(service), tolist) # Index of `service` in the list.
-    p = marginal[index] # The desired marginal probability of `service`.
-    # Compute expected number of requests for `service` given the clients' λ.
-    n = round(Int64, N * p) # Probability as frequency.
-    return n
+    # Deliver total expected requests or just those for `service`.
+    if isnothing(service)
+        return round(Int64, N) # Total number of requests expected.
+    else
+        # Compute expected number of requests for `service` given client's λ.
+        T = model.context[:T] # Markov transition matrix.
+        tolist = model.context[:tolist] # All requestable services.
+        marginal = sum(T, dims=1) / size(T)[1] # Sum out `fromlist` dimension.
+        index = findfirst(==(service), tolist) # Index of `service` in the list.
+        p = marginal[index] # The desired marginal probability of `service`.
+        n = round(Int64, N * p) # Probability as frequency.
+        return n # Number of requests for `service` expected.
+    end
 end
 
 function process( client, model

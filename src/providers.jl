@@ -9,6 +9,12 @@ basemenu = Dict("Allied Health Service" => 80.0 + randn())
     rfactor::Float64 = 1.0 # Recovery factor.
 end
 
+function template(provider::Provider)
+    return ( menu=provider.menu
+           , capacity=provider.capacity
+           , sfactor=provider.sfactor
+           , rfactor=provider.rfactor )
+end
 
 function services(provider::Provider)
     return provider.menu |> keys |> collect
@@ -94,8 +100,6 @@ function make_provider_template(menu; type=:vanilla)
         error("Unkown provider type: $type")
     end
 end
-
-
 
 
 
