@@ -306,7 +306,7 @@ function step_client!(client::Client, model::AgentBasedModel)
     end
 
     # # Any requests due today from a plan in the client's package?
-    # plans = client |> planned(date)
+    # plans = client |> plannedon(date)
     # for plan in plans
         # # TODO: events, feedback = process(client, model; plan=plan)
         # # TODO: Log events and do things with feedback.
@@ -315,11 +315,10 @@ function step_client!(client::Client, model::AgentBasedModel)
     # Client on-scheme and on-board. Open events for today's requests, if any.
     for service in requests(client, model)
         # If client has a plan for this service, ignore the request.
-        if inplan(client, today; service)
-            # TODO: Perhaps record in claim? Request status :inplan, cost = 0?
+        if service in activeplans(client, today)
         # If client has service covered in package, use and update cover.
-        elseif iscovered(client, today; service)
-            # TODO: Packages with cover not used at present.
+        elseif service in coveredon(client, today)
+            # TODO: Cover requests not used at present.
             # TODO: Set status as :covered and cost = 0 (as cover is paid).
             # TODO: Decrement cover, if applicable.
         # An allied health service request spawns a process with a Provider.
@@ -339,29 +338,49 @@ function step_client!(client::Client, model::AgentBasedModel)
             cap = model.context[:alliedhealthpackagecap]
             # Several cases, depending on m.
             if m < 2 # Then just make it a normal service request.
-                e = Event(today, Request(service))
+                # This bypasses the provider --- get default price.
+                price = model.context[:costs][service]
+                # Make a Request with this price.
+                r = Request(item=service, cost=price)
+                # Put the Service Request in an Event.
+                e = Event(today, r)
+                # Add open event to client's claim to await allocation on queue.
                 push!(client, e)
                 println(e)
             elseif m < cap # Package size m.
-                # Package the service.
-                package = Package(service, m, today+Day(1), Week(1))
-                # Package the package.
-                e = Event(today, package)
+                # Wrap the service in a Plan.
+                plan = Plan(service, today+Day(1), Week(1), m)
+                # Provider provides price for plan.
+                price = m * provider[service]
+                # Make a Request with this price.
+                r = Request(item=plan, cost=price)
+                # Put the Service Request in an Event.
+                e = Event(today, r)
                 # Add open event to client's claim to await allocation on queue.
                 push!(client, e)
                 println(e)
             else # Package cap or more expected --- give package of size cap.
-                # Package the service.
-                package = Package(service, cap, today+Day(1), Week(1))
-                # Package the package.
-                e = Event(today, package)
+                # Wrap the service in a Plan.
+                plan = Plan(service, today+Day(1), Week(1), cap)
+                # Provider provides price for plan.
+                price = cap * provider[service]
+                # Make a Request with this price.
+                r = Request(item=plan, cost=price)
+                # Put the Service Request in an Event.
+                e = Event(today, r)
                 # Add open event to client's claim to await allocation on queue.
                 push!(client, e)
                 println(e)
             end
         # Otherwise, open event and await allocation on the relevant queue.
         else
-            e = Event(today, Request(service))
+            # Get default price.
+            price = model.context[:costs][service]
+            # Make a Request with this price.
+            r = Request(item=service, cost=price)
+            # Put the Service Request in an Event.
+            e = Event(today, r)
+            # Add open event to client's claim to await allocation on queue.
             push!(client, e)
             println(e)
         end

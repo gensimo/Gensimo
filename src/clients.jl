@@ -44,24 +44,6 @@ function λ(state::State, mean=:arithmetic)
     mean == :harmonic && return map(x->1/x, state[1:2]) |> sum |> x->1/(2/x) - 1
 end
 
-@kwdef mutable struct Request
-    label::String # Description of the request.
-    cost::Float64 = 0.0 # Monetary cost of the request in e.g. AUD.
-    labour::Float64 = 0.0 # Labour cost of the request in person-hours.
-    status::Symbol = :open # Approved, denied, pending, reopened etc.
-end
-
-Request(service) = Request(label=service)
-
-label(request::Request) = request.label
-labour(request::Request) = request.labour
-labour!(request::Request, l) = request.labour = l
-status(request::Request) = request.status
-status!(request::Request, s::Symbol) = request.status = s
-approved(request::Request) = status(request) == :approved
-cost(request::Request) = approved(request) ? request.cost : 0.0
-cost!(request::Request, c) = request.cost = c
-
 struct Segment
     tier::Int64
     label::String
@@ -70,120 +52,101 @@ end
 tier(segment::Segment) = segment.tier
 label(segment::Segment) = segment.label
 
+const Service = String    # Service identified with the name of the Service.
+
+@kwdef mutable struct Plan
+    service::Service      # The service the Plan plans.
+    firstday::Date        # First day plan is used.
+    period::Period        # Time between service use, e.g. weekly, monthly.
+    nsessions::Integer    # How many sessions of the service the plan covers.
+end
+
+service(plan::Plan) = plan.service
+firstday(plan::Plan) = plan.firstday
+period(plan::Plan) = plan.period
+nsessions(plan::Plan) = plan.nsessions
+lastday(plan::Plan) = firstday(plan) + nsessions(plan) * period(plan)
+isactive(plan::Plan, date::Date) = date ∈ firstday(plan):lastday(plan)
+dates(plan::Plan) = [firstday(plan) + i*period(plan) for i ∈ 1:nsessions(plan)]
+on(plan::Plan, date::Date) = date ∈ dates(plan)
+
+@kwdef mutable struct Cover
+    service::Service      # The service the Cover covers.
+    firstday::Date        # First day the cover can be used.
+    lastday::Date         # Last day the cover can be used.
+    volume::Real          # For example, nsessions (Integer) or $ (Float).
+end
+
+service(cover::Cover) = cover.service
+firstday(cover::Cover) = cover.firstday
+lastday(cover::Cover) = cover.lastday
+volume(cover::Cover) = cover.volume
+nsessions(cover::Cover) = cover.volume isa Integer ? volume(cover) : nothing
+isactive(cover::Cover, date::Date) = date in firstday(cover):lastday(cover)
+
 @kwdef mutable struct Package
-    label::String # The name of the package.
-    fromto::Tuple{Date, Date} # First and last day the package is active.
-    cover::Union{Dict{String, Real}, Nothing} # Label and # of services covered.
-    plans::Union{Dict{String, Tuple{Date, Period}}, Nothing} # Label, timing.
+    label::String         # Description of the Package.
+    plans::Vector{Plan}   # The Plans the Package packages.
+    covers::Vector{Cover} # The Covers the Package packages.
+end
+
+label(package::Package) = package.label
+plans(package::Package) = package.plans
+covers(package::Package) = package.covers
+firstday(package::Package) = [ firstday.(covers(package))...
+                             , firstday.(plans(package))... ] |> minimum
+lastday(package::Package) = [ lastday.(covers(package))...
+                            , lastday.(plans(package))... ] |> maximum
+isactive( package::Package
+        , date::Date) = date in firstday(package):lastday(package)
+
+
+# Fake abstract type --- just so the Service type can be a plain String.
+const Requestable = Union{Service, Plan, Cover, Package}
+
+# Universal label getter.
+function label(requestable::Requestable)
+    if requestable isa Service
+        return requestable
+    elseif requestable isa Plan
+        return service(requestable)
+    elseif requestable isa Cover
+        return service(requestable)
+    elseif requestable isa Package
+        return label(requestable)
+    end
+end
+
+@kwdef mutable struct Request
+    item::Requestable # The requested item.
     cost::Float64 = 0.0 # Monetary cost of the request in e.g. AUD.
     labour::Float64 = 0.0 # Labour cost of the request in person-hours.
     status::Symbol = :open # Approved, denied, pending, reopened etc.
 end
 
-label(package::Package) = package.label
-fromto(package::Package) = package.fromto
-cover(package::Package) = package.cover
-plans(package::Package) = package.plans
-firstday(package::Package) = package.fromto[1]
-lastday(package::Package) = package.fromto[2]
-isactive(package::Package, date::Date) = ( firstday(package)
-                                         <= date
-                                         <= lastday(package) )
-labour(package::Package) = package.labour
-labour!(package::Package, l) = package.labour = l
-status(package::Package) = package.status
-status!(package::Package, s::Symbol) = package.status = s
-approved(package::Package) = status(package) == :approved
-cost(package::Package) = approved(package) ? package.cost : 0.0
-cost!(package::Package, c) = package.cost = c
+Request(requestable) = Request(item=requestable)
 
-function Package( service::String
-                , nsessions::Integer
-                , firstday::Date
-                , period::Period )
-    # Compute the last day.
-    lastday = firstday + (nsessions - 1) * period
-    # Wrap the plan up.
-    plans = Dict(service=>(firstday, period))
-    # Make a label.
-    label = "Plan for $nsessions sessions of $service."
-    # Deliver the plan in a package.
-    return Package( label=label
-                  , fromto = (firstday, lastday)
-                  , cover = nothing
-                  , plans = plans )
-end
-
-function iscovered(package::Package, service::String, date::Date)
-    if cover(package) |> isnothing
-        # Package has no cover whatsoever.
-        return false
-    else
-        # Service in package, date in package lifetime and service not depleted.
-        return ( service ∈ cover(package) |> keys # Service in package at all?
-                 && isactive(package, date)       # Date within life of package?
-                 && cover(package)[service] > 0 ) # Not depleted yet?
-    end
-end
-iscovered(service::String, date::Date) = p -> iscovered(p, service, date)
-
-function coverleft(package::Package, service::String, date::Date)
-    # No. Package expired, not active yet or depleted.
-    if !iscovered(package, service, date)
-        return 0
-    else
-        return cover(package)[service]
-    end
-end
-coverleft(service::String, date::Date) = p -> coverleft(p, service, date)
-
-function dates(package::Package, plan::String)
-    # Get the first date and the period of the service sequence.
-    date, period = plans(package)[plan]
-    # Prepare the list of `Date`s.
-    dates = Date[]
-    # Fill the list.
-    while date <= lastday(package)
-        push!(dates, date)
-        date += period
-    end
-    # Deliver.
-    return dates
-end
-
-function planned(package::Package, date::Date)
-    # First check if the date is within the lifetime of the package.
-    if !isactive(package, date)
-        return String[]
-    # If so, return the list of services due today.
-    else
-        return [ plan for (plan, seq) in package |> plans
-                      if date in dates(package, plan) ]
-    end
-end
-
-function planleft(package::Package, plan::String, date::Date)
-    return [ candidate for candidate in dates(package, plan)
-                       if candidate >= date ]
-end
-planleft(service::String, date::Date) = p -> planleft(p, service, date)
-
-function Base.in(service::String, package::Package)
-    return ( service ∈ package |> cover |> keys
-             || service ∈ package |> plans |> keys )
-end
+item(request::Request) = request.item
+label(request::Request) = label(item(request))
+labour(request::Request) = request.labour
+labour!(request::Request, l) = request.labour = l
+status(request::Request) = request.status
+status!(request::Request, s::Symbol) = request.status = s
+approved(request::Request) = status(request) == :approved
+# cost(request::Request) = approved(request) ? request.cost : 0.0
+cost(request::Request) = request.cost
+cost!(request::Request, c) = request.cost = c
 
 mutable struct Event
     date::Date # When did the change to the claim occur?
     change::Union{ Integer # The assessment, e.g. NIDS.
                  , Segment
-                 , Request
-                 , Package }
+                 , Request }
     term::Union{ Date      # When did the change to the claim close?
                , Nothing } # Or 'nothing' if event has no duration.
 end
 
-function Event(date::Date, change::Union{Integer, Segment, Request, Package})
+function Event(date::Date, change::Union{Integer, Segment, Request})
     return Event(date, change, nothing)
 end
 
@@ -224,10 +187,6 @@ Base.:(+)(c::Claim, e::Event) = Claim([c.events..., e])
 events(c::Claim) = c.events |> sort
 requests(c::Claim) = [ change(event) for event in sort(events(c))
                        if typeof(change(event)) == Request ]
-packages(c::Claim) = [ change(event) for event in sort(events(c))
-                       if typeof(change(event)) == Package ]
-
-
 
 struct Personalia
     name::String
@@ -356,66 +315,25 @@ isonscheme = issegmented # TODO: On-scheme may include more than segmentation.
 """NB: NIDS of a `Client` gives assesed NIDS != nids(client |> state)."""
 nids(client::Client) = [ event for event in events(client)
                          if change(event) isa Integer ][end] |> change
-packages(client::Client) = client |> claim |> packages
-function planned(client::Client, date::Date)
-    plans = String[]
-    for package in packages(client)
-        for plan in planned(package, date)
-            push!(plans, plan)
-        end
-    end
-    return plans
-end
-planned(date::Date) = client -> planned(client, date)
 
-function plans(client::Client)
-    ps = []
-    for package in packages(client)
-        push!(ps, plans(package)...)
-    end
-    return ps
+plans(client::Client) = [i for i in item.(requests(client)) if i isa Plan]
+covers(client::Client) =  [i for i in item.(requests(client)) if i isa Cover]
+packages(client::Client) = [i for i in item.(requests(client)) if i isa Package]
+
+function activeplans(client::Client, date::Date)
+    rs = [ r for r in requests(client)
+           if (status(r) == :open || status(r) == :approved) ]
+    ps = [ i for i in item.(rs) if i isa Plan ]
+    return service.(filter(p->isactive(p, date), ps))
 end
 
-function inplan(client::Client, date::Date; service)
-    return any([service ∈ planned(client, day) for day ∈ dayzero(client):date ])
+function plannedon(client::Client, date::Date)
+    return service.([ p for p in plans(client) if on(p, date) ])
 end
 
-# function inplan(client::Client, date::Date; service)
-    # # Get client's plans, if any.
-    # ps = plans(client)
-    # # Assume nothing.
-    # inplan = false
-    # # If none, done.
-    # if isempty(ps)
-        # return inplan
-    # # If there are plans, see if any contains the service.
-    # else
-        # for p in ps
-            # if service ∈ keys(p)
-                # inplan = true
-                # return inplan # If found, might as well break loop right there.
-            # end
-        # end
-    # end
-    # # Deliver --- if this point is reached this should be false.
-    # return inplan
-# end
-
-function iscovered(client::Client, date::Date; service)
-    return [ iscovered(p, service, date) for p in packages(client) ] |> any
+function coveredon(client::Client, date::Date)
+    return service.([ c for c in covers(client) if isactive(c, date) ])
 end
-
-function coveredin( client::Client, service::String, date::Date
-                  ; allpackages=false # Return only last package by default.
-                  )
-    ps = [ p for p in packages(client) if iscovered(p, service, date) ]
-    if allpackages
-        return ps
-    else
-        return ps[end]
-    end
-end
-
 
 function λ(mean=:arithmetic)
     function(x)
@@ -550,14 +468,10 @@ function Base.show(io::IO, event::Event)
              , change(event)
              )
     elseif typeof(change(event)) == Request
+        type = typeof(item(change(event)))
+        type = type==String ? "service" : lowercase(string(type))
         print( io
-             , "  ", date(event), " > service request"
-             , dstring, "\n"
-             , "  | ", change(event)
-             )
-    elseif typeof(change(event)) == Package
-        print( io
-             , "  ", date(event), " > package addition"
+             , "  ", date(event), " > ", type, " request"
              , dstring, "\n"
              , "  | ", change(event)
              )
@@ -571,32 +485,35 @@ function Base.show(io::IO, event::Event)
 end
 
 function Base.show(io::IO, segment::Segment)
+    print(io , "  | Tier ", tier(segment), " (", label(segment), ")")
+end
+
+function Base.show(io::IO, plan::Plan)
     print( io
-         , "  | Tier ", tier(segment), " (", label(segment), ")"
-         #= Old Segment fields:
-         , "  | Division: ", division(segment), "\n"
-         , "  | Branch: ", branch(segment), "\n"
-         , "  | Team: ", team(segment), "\n"
-         , "  | Manager: ", manager(segment)
-         =#
+         , "Plan for ", "<", label(plan), ">", "\n"
+         , "  | * "
+         , nsessions(plan), " sessions. "
+         , "Once every ", period(plan)
+         , ", starting ",  firstday(plan), "."
          )
+end
+
+function Base.show(io::IO, service::Service)
+    print(io, "<", service, ">")
 end
 
 function Base.show(io::IO, request::Request)
-    print( io, "<", label(request), ">"
-         , " @ ", @sprintf "\$%.2f" cost(request)
-         , " + ", labour(request), " hours FTE equivalent."
-         , string(" Status: ", string(status(request)), ".")
-         )
-end
-
-function Base.show(io::IO, package::Package)
-    print(io, label(package))
-    # TODO: This assumes it is a _plan_ and it provides just one service.
-    service = collect(keys(plans(package)))[1] # The key to the plan.
-    firstday, period = plans(package)[service] # Get starting day and period.
-    print(io, " Every ", period, ", starting ",  firstday, ".")
-    print(io, string(" Status: ", string(status(package)), "."))
+    if request |> item isa Service
+        println(io, "<", item(request), ">")
+        print( io, "  | @ ", @sprintf "\$%.2f" cost(request)
+             , " + ", labour(request), " hours FTE equivalent.")
+        print(io, string(" Status: ", string(status(request)), "."))
+    elseif request |> item isa Plan
+        println(io, item(request))
+        print( io, "  | @ ", @sprintf "\$%.2f" cost(request)
+             , " + ", labour(request), " hours FTE equivalent." )
+        print(io, string(" Status: ", string(status(request)), "."))
+    end
 end
 
 function Base.show(io::IO, state::State)

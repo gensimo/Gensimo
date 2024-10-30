@@ -33,6 +33,7 @@ export Request,
 export State,
        big6, nids, healthindex
 export name, heaviside, n
+export activeplans
 
 # Include and export essentials from insurers.jl.
 include("insurers.jl")
