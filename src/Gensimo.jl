@@ -28,12 +28,12 @@ export Package,
        firstday, lastday, isactive, iscovered, coverleft, coveredin,
        planned, planleft, dates
 export Request,
-       label, cost, labour, approved, status,
+       label, cost, labour, approved, denied, status,
        cost!, labour!, status!
 export State,
        big6, nids, healthindex
 export name, heaviside, n
-export activeplans
+export activeplans, satisfaction, duration
 
 # Include and export essentials from insurers.jl.
 include("insurers.jl")

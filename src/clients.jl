@@ -133,6 +133,7 @@ labour!(request::Request, l) = request.labour = l
 status(request::Request) = request.status
 status!(request::Request, s::Symbol) = request.status = s
 approved(request::Request) = status(request) == :approved
+denied(request::Request) = status(request) == :denied
 # cost(request::Request) = approved(request) ? request.cost : 0.0
 cost(request::Request) = request.cost
 cost!(request::Request, c) = request.cost = c
@@ -174,6 +175,44 @@ function labour(event::Event)
     typeofchange == Segment && return 0.0
     typeofchange <: Integer && return 0.0
     typeofchange == Package && return 0.0
+end
+
+function duration(event::Event, window::Union{Integer, Period}, today::Date)
+    # If window was provided as an Integer, turn it into a Date.
+    if window isa Integer
+        window = Day(window)
+    end
+    # Various cases to consider if it concerns a Request.
+    if (request = change(event)) isa Request
+        # Request occurs in the future.
+        if today < date(event)
+            println("# Request occurs in the future.")
+            d = Day(0)
+        # Request event still open.
+        elseif isnothing(term(event))
+            println("# Request event still open.")
+            d = today - date(event)
+        # Request event closed and in the past.
+        elseif term(event) < today
+            # Request event closed before window opened.
+            if today - window > term(event)
+                println("# Request event closed before window opened.")
+                d = Day(0)
+            # Request event closed before today but open within window.
+            else
+                println("# Request event closed before today but open within window.")
+                d = duration(event) |> Day
+            end
+        # Request closes today or after, but still open.
+        else
+            println("# Request closes after today but still open.")
+            d = today - date(event)
+        end
+    else
+        println("# Event is not a Request --- no duration")
+        d = Day(0) # Other events are instantaneous.
+    end
+    return d.value
 end
 
 struct Claim
@@ -322,7 +361,7 @@ packages(client::Client) = [i for i in item.(requests(client)) if i isa Package]
 
 function activeplans(client::Client, date::Date)
     rs = [ r for r in requests(client)
-           if (status(r) == :open || status(r) == :approved) ]
+           if status(r) != :denied ]
     ps = [ i for i in item.(rs) if i isa Plan ]
     return service.(filter(p->isactive(p, date), ps))
 end
@@ -404,7 +443,7 @@ end
 
 function cost(client::Client; cumulative=false)
     dates = date.(client |> events)
-    dollars = cost.(client |> events)
+    dollars = cost.(client |> events) # Includes denied requests.
     df = sort(DataFrame(date=dates, cost=dollars), :date)
     gdf = combine(groupby(df, :date), :cost => sum)
     costs = cumulative ? cumsum(gdf.cost_sum) : gdf.cost_sum
@@ -419,6 +458,21 @@ function nrequests(state::State, rng=nothing; m=100.0)
 end
 
 nrequests(client::Client, rng=nothing) = nrequests(client |> state, rng)
+
+function satisfaction( client::Client
+                     ; window::Union{Integer, Period}=150
+                     , today::Date )
+    # If window was provided as an Integer, turn it into a Date.
+    if window isa Integer
+        window = Day(window)
+    end
+    waitfactor = duration.(events(client), window, today) |> sum
+    costfactor = 1.0
+    denyfactor = 1.0 # TODO: model.context[:denialmultiplier]
+    
+    irk = waitfactor * costfactor * denyfactor
+    return 1/(1 + irk/100)
+end
 
 function Base.show(io::IO, client::Client)
     n = client |> nevents
@@ -506,12 +560,15 @@ function Base.show(io::IO, request::Request)
     if request |> item isa Service
         println(io, "<", item(request), ">")
         print( io, "  | @ ", @sprintf "\$%.2f" cost(request)
-             , " + ", labour(request), " hours FTE equivalent.")
+             , " + ", (@sprintf "%.2f" labour(request))
+             , " hours FTE equivalent." )
         print(io, string(" Status: ", string(status(request)), "."))
     elseif request |> item isa Plan
         println(io, item(request))
-        print( io, "  | @ ", @sprintf "\$%.2f" cost(request)
-             , " + ", labour(request), " hours FTE equivalent." )
+        print( io
+             , "  | @ ", @sprintf "\$%.2f" cost(request)
+             , " + ", (@sprintf "%.2f" labour(request))
+             , " hours FTE equivalent." )
         print(io, string(" Status: ", string(status(request)), "."))
     end
 end

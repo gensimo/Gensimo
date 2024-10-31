@@ -77,10 +77,18 @@ isallocated(task::Task) = !isnothing(task.allocation)
 requestedon(task::Task) = task.event.date
 allocatedon(task::Task) = task.date
 
-function close!(task::Task, date::Date; status)
+function close!( task::Task, date::Date
+               ; status, cost=nothing, labour=0.0)
     # Close the request --- status is :approved or :denied.
     status!(request(task), status) # Log request status in Request.
-    term!(event(task), date) # Log the closing date on Event.
+    # Only log cost if explicitly asked --- providers normally set cost.
+    if !isnothing(cost)
+        cost!(request(task), cost) # Log the cost in Request.
+    end
+    # Log the labour spent in Request.
+    labour!(request(task), labour)
+    # Log the closing date on Event.
+    term!(event(task), date)
     # Close the task --- filter out task to be closed from manager's task list.
     filter!(!=(task), allocations(clientele(task))[manager(task)])
     # Return the corresponding event for visual check in REPL.

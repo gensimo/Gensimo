@@ -251,21 +251,27 @@ function step_manager!(manager::Manager, model::AgentBasedModel)
     for t in ts
         # How many days to decision on average for this service request?
         ndays = Day(round(Int, days[label(request(t))]))
-        # Overdue? Counting from allocation, which is later than request date.
-        if today - allocatedon(t) >= ndays
+        # Waiting. Counting from allocation, which is later than request date.
+        ndayswaiting = today - allocatedon(t)
+        # Compute the labour involved --- TODO: Naive.
+        labour = ndays.value * 8.0 / capacity(manager)
+        # Wait with processing until ndays --- request takes _at least_ ndays.
+        if ndayswaiting >= ndays
             # If _requested_ within grace period, just approve.
             if requestedon(t) - dayzero(client(t)) <= grace
                 # Approve, log in event, request and clear from task list.
-                close!(t, today, status=:approved)
+                close!(t, today; status=:approved, labour)
             else
                 # TODO: Put in deliberation loop.
                 # TODO: Make d-loop dependent on the rarity of the request made?
                 # Flip a virtual, weighted coin.
                 approved = rand(abmrng(model), Bernoulli(p))
                 if approved
-                    close!(t, today, status=:approved)
+                    close!(t, today; status=:approved, labour)
                 else
-                    close!(t, today, status=:denied)
+                    # More labour for denied requests.
+                    labour *= model.context[:denialmultiplier]
+                    close!(t, today; status=:denied, labour)
                 end
             end
         end
@@ -314,8 +320,12 @@ function step_client!(client::Client, model::AgentBasedModel)
 
     # Client on-scheme and on-board. Open events for today's requests, if any.
     for service in requests(client, model)
+        bad = false
         # If client has a plan for this service, ignore the request.
         if service in activeplans(client, today)
+            println(service)
+            println("THIS SERVICE IS IN AN ACTIVE PLAN ALREADY.")
+            bad = true
         # If client has service covered in package, use and update cover.
         elseif service in coveredon(client, today)
             # TODO: Cover requests not used at present.
@@ -323,6 +333,9 @@ function step_client!(client::Client, model::AgentBasedModel)
             # TODO: Decrement cover, if applicable.
         # An allied health service request spawns a process with a Provider.
         elseif service ∈ model.context[:alliedhealthservices]
+            if bad
+                println("BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD")
+            end
             # If this service is already in a plan/package, skip it.
             # Find a random provider who can offer the service.
             ppop = model.context[:providerpopulation]
