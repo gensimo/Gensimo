@@ -169,6 +169,36 @@ function cost(event::Event)
     end
 end
 
+function cost(event::Event, window::Union{Integer, Period}, today::Date)
+    # If window was provided as an Integer, turn it into a Date.
+    if window isa Integer
+        window = Day(window)
+    end
+    # Various cases to consider if the event is a Request.
+    if (request = change(event)) isa Request
+        # Request occurs in the future.
+        if today < date(event)
+            # println("# Request occurs in the future.")
+            c = 0.0
+        # Request event closed before window opened.
+        elseif !isnothing(term(event)) && today - window > term(event)
+            # println("# Request event closed before window opened.")
+            c = 0.0
+        # Request event overlaps with window --- full cost.
+        else
+            # println(" # Request event overlaps with window --- full cost.")
+            c = cost(event)
+        end
+    # Event does not concern a Request.
+    else
+        # println("# Event does not concern a Request.")
+        c = 0.0
+    end
+
+    # Deliver.
+    return c
+end
+
 function labour(event::Event)
     typeofchange = event |> change |> typeof
     typeofchange == Request && return event |> change |> labour
@@ -177,7 +207,10 @@ function labour(event::Event)
     typeofchange == Package && return 0.0
 end
 
-function duration(event::Event, window::Union{Integer, Period}, today::Date)
+function duration( event::Event
+                 , window::Union{Integer, Period}
+                 , today::Date
+                 ; fade=true )
     # If window was provided as an Integer, turn it into a Date.
     if window isa Integer
         window = Day(window)
@@ -186,33 +219,38 @@ function duration(event::Event, window::Union{Integer, Period}, today::Date)
     if (request = change(event)) isa Request
         # Request occurs in the future.
         if today < date(event)
-            println("# Request occurs in the future.")
-            d = Day(0)
+            # println("# Request occurs in the future.")
+            d = 0
         # Request event still open.
         elseif isnothing(term(event))
-            println("# Request event still open.")
-            d = today - date(event)
+            # println("# Request event still open.")
+            d = today - date(event) |> Dates.value
         # Request event closed and in the past.
         elseif term(event) < today
+            # If fading, the opening date of the window is irrelevant.
+            if fade
+                # println("Fading...")
+                d = duration(event)
             # Request event closed before window opened.
-            if today - window > term(event)
-                println("# Request event closed before window opened.")
-                d = Day(0)
+            elseif today - window > term(event)
+                # println("# Request event closed before window opened.")
+                d = 0
             # Request event closed before today but open within window.
             else
-                println("# Request event closed before today but open within window.")
-                d = duration(event) |> Day
+                # println("# Request event closed before today but open within window.")
+                d = duration(event)
             end
         # Request closes today or after, but still open.
         else
-            println("# Request closes after today but still open.")
-            d = today - date(event)
+            # println("# Request closes after today but still open.")
+            d = today - date(event) |> Dates.value
         end
     else
-        println("# Event is not a Request --- no duration")
-        d = Day(0) # Other events are instantaneous.
+        # println("# Event is not a Request --- no duration")
+        d = 0 # Other events are instantaneous.
     end
-    return d.value
+    # Deliver.
+    return d
 end
 
 struct Claim
@@ -460,18 +498,48 @@ end
 nrequests(client::Client, rng=nothing) = nrequests(client |> state, rng)
 
 function satisfaction( client::Client
-                     ; window::Union{Integer, Period}=150
-                     , today::Date )
+                     ; window::Union{Integer, Period}=Month(6)
+                     , today::Date
+                     , denialmultiplier::Number=2.0
+                     , irksusceptibility::Number=.05 )
     # If window was provided as an Integer, turn it into a Date.
     if window isa Integer
         window = Day(window)
     end
-    waitfactor = duration.(events(client), window, today) |> sum
-    costfactor = 1.0
-    denyfactor = 1.0 # TODO: model.context[:denialmultiplier]
-    
-    irk = waitfactor * costfactor * denyfactor
-    return 1/(1 + irk/100)
+    # Logarithm of waiting time as order of magnitude determines the sting.
+    waitfactor(event) = 1 + duration(event, window, today) |> log
+    # Logarithm of cost as order of magnitude determines the sting.
+    costfactor(event) = 1 + cost(event) |> log # , window, today) |> log
+    # Denial only applies when the event concerns a request and is denied.
+    # TODO: Assumes that today is after term(event) for denied requests.
+    denyfactor(event) = ( change(event) isa Request
+                          && denied(change(event)) ) ? denialmultiplier : 1.0
+    # Taper function, for if event is in the past. Declines < 95% over window.
+    function taper(event)
+        if !isnothing(term(event))
+            # How much time has passed since term?
+            t = today - term(event) |> Dates.value
+            # How many days in `window` (depends on `today`!)
+            w = today - (today - window) |> Dates.value
+            # Deliver.
+            return exp(-3*t / w)
+        else
+            # Deliver.
+            return 1.0
+        end
+    end
+    # Event-wise irk. Dissatisfaction is the product of the factors of irk.
+    irk(event) = ( waitfactor(event)
+                 * costfactor(event)
+                 * denyfactor(event)
+                 * taper(event)
+                 * irksusceptibility )
+    # Get all events.
+    es = events(client)
+    # Compute cumulative irk.
+    cumirk = irk.(es) |> sum
+    # Deliver satisfaction.
+    return 1/(1 + cumirk)
 end
 
 function Base.show(io::IO, client::Client)
