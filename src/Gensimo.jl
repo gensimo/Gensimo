@@ -13,7 +13,7 @@ export Client,
        reset_client, personalia, history, claim, segment,
        dates, date, states, nstates, state, dayzero,
        update_client!,
-       nids, τ, dτ, λ, age, hazard,
+       nids, τ, dτ, λ, age, hazard, σ, σ₀,
        events, nevents, requests, nrequests, nrequests, packages,
        isactive, isonscheme, issegmented,
        workload

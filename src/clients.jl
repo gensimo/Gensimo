@@ -365,6 +365,8 @@ end
 events(client::Client) = client |> claim |> events
 tier(client::Client) = issegmented(client) ? tier(segment(client)) : nothing
 name(client::Client) = name(personalia(client))
+σ(client::Client) = state(client)[end]
+σ₀(client::Client) = states(client)[1][end]
 
 # Other utility functions.
 τ(client::Client, date::Date) = date - dayzero(client) |> Dates.value
@@ -430,11 +432,15 @@ end
 function update_client!(client::Client, date::Date, state::State)
     # Update client's actual state vector.
     push!(client.history, (date, state))
-    # Update client's 'position' accordingly.
-    # client.pos = state[1], state[2]
 end
 
-function update_client!(client::Client, date::Date, ϕ, ψ, σ=nothing)
+function update_client!( client::Client
+                       , date::Date
+                       , ϕ=nothing, ψ=nothing, σ=nothing )
+    # Use current ϕ if no new value provided.
+    isnothing(ϕ) ? ϕ = state(client)[1] : ϕ
+    # Use current ψ if no new value provided.
+    isnothing(ψ) ? ψ = state(client)[2] : ψ
     # Use current σ if no new value provided.
     isnothing(σ) ? σ = state(client)[end] : σ
     # Update client's `State` vector at entries for ϕ, ψ and σ only.
@@ -443,9 +449,9 @@ function update_client!(client::Client, date::Date, ϕ, ψ, σ=nothing)
     update_client!(client, date, s)
 end
 
-function update_client!(client::Client, date::Date, λ)
+function update_client!(client::Client, date::Date; λ, σ)
     # Just call `update_client!` with inferred ϕ and ψ.
-    update_client!(client, date, 1/(λ+1), 1/(λ+1))
+    update_client!(client, date, 1/(λ+1), 1/(λ+1), σ)
 end
 
 function isactive(client::Client, refdate::Date)
@@ -497,11 +503,10 @@ end
 
 nrequests(client::Client, rng=nothing) = nrequests(client |> state, rng)
 
-function satisfaction( client::Client
-                     ; window::Union{Integer, Period}=Month(6)
-                     , today::Date
-                     , denialmultiplier::Number=2.0
-                     , irksusceptibility::Number=.05 )
+function satisfactor( client::Client, today::Date
+                    ; window::Union{Integer, Period}=Month(6)
+                    , denialmultiplier::Number=2.0
+                    , irksusceptibility::Number=.05 )
     # If window was provided as an Integer, turn it into a Date.
     if window isa Integer
         window = Day(window)
@@ -537,9 +542,20 @@ function satisfaction( client::Client
     # Get all events.
     es = events(client)
     # Compute cumulative irk.
-    cumirk = irk.(es) |> sum
+    cumirk = isempty(es) ? 0.0 : irk.(es) |> sum
     # Deliver satisfaction.
     return 1/(1 + cumirk)
+end
+
+function satisfaction( client::Client, today::Date
+                     ; window::Union{Integer, Period}=Month(6)
+                     , denialmultiplier::Number=2.0
+                     , irksusceptibility::Number=.05 )
+    # Satisfaction is relative to initial satisfaction.
+    return σ₀(client) * satisfactor( client, today
+                                   ; window
+                                   , denialmultiplier
+                                   , irksusceptibility )
 end
 
 function Base.show(io::IO, client::Client)

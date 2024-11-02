@@ -132,8 +132,9 @@ function Conductor( context            # Model parameters.
     # Generate the clients
     clients = [ Client( id=i, pos=(0.0, 0.0), vel=(0.0, 0.0)
                       , personalia = Personalia()
-                      , history = [ ( rand(epoch:eschaton)
-                                    , State(rand(12))) ]
+                      , history = [ ( rand(epoch:epoch+Year(1)-Day(1))
+                                     , State( [ rand(11)...
+                                              , .75 + (.5-rand())/2 ] )) ]
                       , claim = Claim() )
                 for i ∈ 1:nclients ]
     # Update index.

@@ -501,11 +501,13 @@ function dashboard_fte(model::AgentBasedModel)
                                           , nevents
                                           , ntasks
                                           , nopen
+                                          , satisfaction
                                           ]
                                 , mlabels = [ "active clients [ # ]"
                                             , "number of events [ # ]"
                                             , "allocated tasks [ # ]"
                                             , "requests waiting [ # ]"
+                                            , "mean client satisfaction [ % ]"
                                             ]
                                 )
     # Show me what you got.

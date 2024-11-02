@@ -100,6 +100,17 @@ function nopen(model::AgentBasedModel)
     return sum([ nopen(clientele) for clientele in clienteles(model) ])
 end
 
+function satisfaction(model::AgentBasedModel)
+    # Return mean satisfaction as a percentage.
+    σs = [ satisfaction( client, date(model)
+                       ; denialmultiplier = model.context[:denialmultiplier]
+                       , irksusceptibility = model.context[:irksusceptibility] )
+          for client in clients(model) ]
+    # Deliver.
+    return 100*mean(σs)
+
+end
+
 function portfolios(model::AgentBasedModel)
     return [ p for p in clienteles(model) if p |> isportfolio ]
 end
@@ -320,12 +331,9 @@ function step_client!(client::Client, model::AgentBasedModel)
 
     # Client on-scheme and on-board. Open events for today's requests, if any.
     for service in requests(client, model)
-        bad = false
         # If client has a plan for this service, ignore the request.
         if service in activeplans(client, today)
-            println(service)
-            println("THIS SERVICE IS IN AN ACTIVE PLAN ALREADY.")
-            bad = true
+            # Doing nothing in this branch on purpose.
         # If client has service covered in package, use and update cover.
         elseif service in coveredon(client, today)
             # TODO: Cover requests not used at present.
@@ -333,9 +341,6 @@ function step_client!(client::Client, model::AgentBasedModel)
             # TODO: Decrement cover, if applicable.
         # An allied health service request spawns a process with a Provider.
         elseif service ∈ model.context[:alliedhealthservices]
-            if bad
-                println("BAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAD")
-            end
             # If this service is already in a plan/package, skip it.
             # Find a random provider who can offer the service.
             ppop = model.context[:providerpopulation]
@@ -359,7 +364,6 @@ function step_client!(client::Client, model::AgentBasedModel)
                 e = Event(today, r)
                 # Add open event to client's claim to await allocation on queue.
                 push!(client, e)
-                println(e)
             elseif m < cap # Package size m.
                 # Wrap the service in a Plan.
                 plan = Plan(service, today+Day(1), Week(1), m)
@@ -371,7 +375,6 @@ function step_client!(client::Client, model::AgentBasedModel)
                 e = Event(today, r)
                 # Add open event to client's claim to await allocation on queue.
                 push!(client, e)
-                println(e)
             else # Package cap or more expected --- give package of size cap.
                 # Wrap the service in a Plan.
                 plan = Plan(service, today+Day(1), Week(1), cap)
@@ -383,7 +386,6 @@ function step_client!(client::Client, model::AgentBasedModel)
                 e = Event(today, r)
                 # Add open event to client's claim to await allocation on queue.
                 push!(client, e)
-                println(e)
             end
         # Otherwise, open event and await allocation on the relevant queue.
         else
@@ -395,17 +397,22 @@ function step_client!(client::Client, model::AgentBasedModel)
             e = Event(today, r)
             # Add open event to client's claim to await allocation on queue.
             push!(client, e)
-            println(e)
         end
     end
 
-    # Recovery and iatrogenics. For now, just binomial options style recovery.
-    # TODO: Improve.
-    new_λ = stap( 1, λ(client) )
-                # ; u = feedback.uptick
-                # , d = feedback.downtick
-                # , p = feedback.probability
-    update_client!(client, date(model), new_λ)
+    # Recovery and iatrogenics.
+    σ = satisfaction( client, today
+                    ; denialmultiplier = model.context[:denialmultiplier]
+                    , irksusceptibility = model.context[:irksusceptibility] )
+    # println(name(client), ": ", σ * 100, " satisfied.")
+    new_p = .5*(σ₀(client) - σ) / σ₀(client) # .5 if no satisfaction - or less.
+    new_λ = stap( 1                       # One step at a time.
+                , λ(client)               # From the current hazard rate.
+                , p = new_p               # Hazard rate up when σ goes down.
+                )
+    update_client!( client, date(model)
+                  ; λ=new_λ
+                  , σ )
 end
 
 function tier(client::Client, model::AgentBasedModel)
@@ -451,89 +458,6 @@ function nexpected(client::Client, model::AgentBasedModel; service=nothing)
         n = round(Int64, N * p) # Probability as frequency.
         return n # Number of requests for `service` expected.
     end
-end
-
-function process( client, model
-                ; request = nothing # Processing either a request ...
-                , plan = nothing    # ... or a plan.
-                )
-    if request |> !isnothing
-        return process_request(client, model, request) # -> (event, feedback)
-    end
-    if plan |> !isnothing
-        return process_plan(client, model, request) # -> (event, feedback)
-    end
-end
-
-function process_request(client::Client, model::AgentBasedModel; request)
-    if iscovered(client, request, date(model))
-        return process_cover(client, model, request)
-    end
-
-    acceptance_probability = .8 # TODO: Obvs not hard code, make model prop.
-
-    cost = 50.0 + 50 * rand(abmrng(model))
-    if rand(abmrng(model), Bernoulli(acceptance_probability))
-        request = Request(request, cost, 0.0, true) # Request approved.
-    else
-        request = Request(request, cost, 0.0, false) # Request denied.
-    end
-    event = Event(date(model), request)
-    return events, feedback
-end
-
-function process_cover(client::Client, model::AgentBasedModel; request)
-    # Find the package with the cover for this service request.
-    p = coveredin(client, request, date(model), allpackages=false)
-    # Decrement the cover by one unit.
-    cover(p)[request] -= 1
-    # Return an `Event` with zero cost.
-    return Event(date(model), Request(request, 0.0, 0.0, :approved))
-end
-
-function process_plan(client::Client, model::AgentBasedModel; request)
-    # All there is to do is return an `Event` with zero cost.
-    return Event(date(model), Request(request, 0.0, 0.0, :approved))
-end
-
-function _step_client!(client::Client, model::AgentBasedModel)
-    # Get the requests for today's hazard rate and deal with them sequentially.
-    for request in _requests(client, model)
-        # Is the request for an allied health service?
-        if request == "Allied Health Service"
-            # Spawn the relevant process.
-            request_liaising!(client, model, request=request)
-        else
-            # Spawn the relevant process.
-            request_simple!(client, model, request=request)
-        end
-    end
-    # Update the client's hazard rate.
-    move_agent!(client, position(client, model), model)
-    update_client!(client, date(model), stap(1, (client |> λ)))
-end
-
-function request_simple!( client::Client, model::AgentBasedModel
-                        ; request )
-    # Write up the `Request` with a random cost.
-    cost = 50.0 + 50 * rand(abmrng(model))
-    request = Request(request, cost, 0.0, :approved)
-    # Make it an `Event`.
-    event = Event(date(model), request)
-    # Add the event to the client's `Claim`.
-    push!(client, event)
-end
-
-function request_liaising!( client::Client, model::AgentBasedModel
-                          ; request )
-    # Select a provider --- randomly, for now.
-    provider = random_agent(model, agent->typeof(agent)==Provider)
-    # Write up the `Request`.
-    request = Request(request, provider[request], 0.0, :approved)
-    # Make it an `Event`.
-    event = Event(date(model), request)
-    # Add the event to the client's `Claim`.
-    push!(client, event)
 end
 
 function requests(client::Client, model::AgentBasedModel)
@@ -602,4 +526,3 @@ function walk( T::Int, x₀=1.0
     # Deliver.
     return xs
 end
-
