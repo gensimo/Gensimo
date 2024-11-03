@@ -494,7 +494,7 @@ function cost(client::Client; cumulative=false)
     return Vector{Date}(gdf.date), costs
 end
 
-function nrequests(state::State, rng=nothing; m=100.0)
+function nrequests(state::State, rng=nothing; m=10.0)
     # If not provided, get the pseudo-randomness from device.
     isnothing(rng) ? rng = RandomDevice() : rng
     # Deliver.

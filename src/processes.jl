@@ -105,10 +105,14 @@ function satisfaction(model::AgentBasedModel)
     σs = [ satisfaction( client, date(model)
                        ; denialmultiplier = model.context[:denialmultiplier]
                        , irksusceptibility = model.context[:irksusceptibility] )
-          for client in clients(model) ]
+          for client in clients(model)
+          if isactive(client, date(model)) ]
     # Deliver.
-    return 100*mean(σs)
-
+    if isempty(σs)
+        return 100.0*mean(σ₀.(clients(model)))
+    else
+        return 100.0*mean(σs)
+    end
 end
 
 function portfolios(model::AgentBasedModel)
@@ -329,6 +333,8 @@ function step_client!(client::Client, model::AgentBasedModel)
         # # TODO: Log events and do things with feedback.
     # end
 
+    # Recovery factor starts at unity every day --- rfactors may change it.
+    provider_rfactor = 1.0
     # Client on-scheme and on-board. Open events for today's requests, if any.
     for service in requests(client, model)
         # If client has a plan for this service, ignore the request.
@@ -348,6 +354,8 @@ function step_client!(client::Client, model::AgentBasedModel)
                           , collect(keys(ppop))
                           , Weights(collect(values(ppop))) )
             provider = filter(p->type(p, model)==ptype , providers(model))[1]
+            # Take providers iatrogenics into account.
+            provider_rfactor *= rfactor(provider)
             # How many of these services will the client expect to need?
             n = nexpected(client, model; service)
             # Over- or underservice this number as per provider type.
@@ -401,15 +409,20 @@ function step_client!(client::Client, model::AgentBasedModel)
     end
 
     # Recovery and iatrogenics.
+    #
+    # Iatrogenics from client satisfaction.
     σ = satisfaction( client, today
                     ; denialmultiplier = model.context[:denialmultiplier]
                     , irksusceptibility = model.context[:irksusceptibility] )
-    # println(name(client), ": ", σ * 100, " satisfied.")
     new_p = .5*(σ₀(client) - σ) / σ₀(client) # .5 if no satisfaction - or less.
+    # Iatrogenics from allied health provider's rfactor (if applicable).
+    new_p /= provider_rfactor # Divisor == 1.0 if not applicable.
+    # Determine new hazard rate, incorporating iatrogenic factors.
     new_λ = stap( 1                       # One step at a time.
                 , λ(client)               # From the current hazard rate.
                 , p = new_p               # Hazard rate up when σ goes down.
                 )
+    # Log this in the client's history.
     update_client!( client, date(model)
                   ; λ=new_λ
                   , σ )

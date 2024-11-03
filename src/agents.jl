@@ -1,6 +1,8 @@
 # using Agents
+using Gensimo
 using Random
-
+using FileIO, JLD2
+using Dates
 # # Make a Clientele.
 # clientele = Clientele(3)
 # # Generate some InsuranceWorkers.
@@ -31,6 +33,12 @@ population = Dict( :vanilla     => .2
                  , :fraud       => .1
                  , :incompetent => .1 )
 
+population2 = Dict( :vanilla     => .1
+                  , :martyr      => .1
+                  , :emerging    => .1
+                  , :established => .1
+                  , :fraud       => .3
+                  , :incompetent => .3 )
 # n = 10
 # cs = [ Client( id=i, pos=(0.0, 0.0), vel=(0.0, 0.0)
                        # , personalia = Personalia()

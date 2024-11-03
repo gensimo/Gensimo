@@ -44,6 +44,10 @@ function sfactor!(provider::Provider, sfactor::Real)
     provider.sfactor = sfactor
 end
 
+function rfactor(provider::Provider)
+    return provider.rfactor
+end
+
 function Base.getindex(provider::Provider, service::String)
     if service in provider.menu |> keys
         return provider.menu[service]
@@ -75,12 +79,12 @@ function make_provider_template(menu; type=:vanilla)
                , sfactor=1.5            # Overservicing by 50%
                , rfactor=1.0            # No iatrogenics.
                )
-    # Established businesses overcharge but don't overservice. No iatrogenics.
+    # Established businesses overcharge but don't overservice. Pos. iatrogenics.
     elseif type == :established
         return ( menu=scale(menu, 1.25) # Overcharging by 25%
                , capacity=10            # Default capacity.
                , sfactor=1.0            # No overservicing.
-               , rfactor=1.0            # No iatrogenics.
+               , rfactor=1.5            # Improved outcomes.
                )
     # Frauds overservice and overcharge. Iatrogenics: impaired recovery.
     elseif type == :fraud

@@ -507,7 +507,7 @@ function dashboard_fte(model::AgentBasedModel)
                                             , "number of events [ # ]"
                                             , "allocated tasks [ # ]"
                                             , "requests waiting [ # ]"
-                                            , "mean client satisfaction [ % ]"
+                                            , "mean active client satisfaction [ % ]"
                                             ]
                                 )
     # Show me what you got.
