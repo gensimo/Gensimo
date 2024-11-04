@@ -38,7 +38,7 @@ export activeplans, satisfaction, duration
 # Include and export essentials from insurers.jl.
 include("insurers.jl")
 export Clientele, Manager, ClientAssistant, ClaimsManager,
-       capacity, allocations, nallocations, nfree, anyfree, freemanagers,
+       capacity, allocations, nallocations, nfree, pfree, anyfree, freemanagers,
        Task, tasks, close!, allocate!, requestedon, allocatedon,
        ispool, isport, isportfolio, managers
 
@@ -65,11 +65,11 @@ export initialise, simulate!,
        clienteles, clientele,
        client_step!, agent_step!, model_step!,
        stap, walk, nrequests, requests,
-       nevents, cost, nactive, workload,
+       nevents, cost, cost_meancum, nactive, nclients, workload,
        ntasks, nopen, provides,
        next_request, next_requests,
        portfolios, pools,
-       type
+       type, qoccupation
 
 # Include and export essentials from display.jl.
 include("display.jl")

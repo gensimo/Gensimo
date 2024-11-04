@@ -497,17 +497,21 @@ function dashboard_fte(model::AgentBasedModel)
                                 , heatarray = heat
                                 , heatkwargs = ( colorrange = (0, 100)
                                                , colormap = :thermal )
-                                , mdata = [ nactive
+                                , mdata = [ nopenclients
+                                          , nwaiting
+                                          , cost_mediancum
                                           , nevents
-                                          , ntasks
-                                          , nopen
+                                          , qoccupation
+                                          , nopenrequests
                                           , satisfaction
                                           ]
-                                , mlabels = [ "active clients [ # ]"
+                                , mlabels = [ "open clients [ # ]"
+                                            , "waiting clients [ # ]"
+                                            , "median cumulative cost [ \$ ]"
                                             , "number of events [ # ]"
-                                            , "allocated tasks [ # ]"
+                                            , "queue occupation [ % ]"
                                             , "requests waiting [ # ]"
-                                            , "mean active client satisfaction [ % ]"
+                                            , "mean satisfaction [ % ]"
                                             ]
                                 )
     # Show me what you got.

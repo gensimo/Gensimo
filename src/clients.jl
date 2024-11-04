@@ -467,6 +467,18 @@ function isactive(client::Client, refdate::Date)
     return afterzero && beforeend
 end
 
+function iswaiting(client::Client, refdate::Date)
+    # This means the client has :open requests.
+    request_es = [ e for e in events(client) if change(e) isa Request ]
+    es = [ e for e in request_es if isnothing(term(e)) || refdate < term(e) ]
+    return length(es) > 0
+end
+
+function isopen(client::Client, refdate::Date)
+    # A client is 'closed' if both not active and not open.
+    return iswaiting(client, refdate) || isactive(client, refdate)
+end
+
 function workload(client::Client)
     dates = date.(client |> events)
     hours = labour.(client |> events)

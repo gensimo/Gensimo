@@ -32,9 +32,20 @@ isportfolio(clientele::Clientele) = length(managers(clientele)) == 1
 isport(clientele::Clientele) = isportfolio(clientele)
 ispool(clientele::Clientele) = length(managers(clientele)) > 1
 allocations(clientele::Clientele) = clientele.managers
-function nallocations(clientele::Clientele)
-    return Dict( key => length(val) for (key, val) in allocations(clientele) )
+
+function capacity(clientele::Clientele)
+    return sum(capacity(m) for m in managers(clientele))
 end
+
+function nallocations(clientele::Clientele; total=false)
+    d = Dict( key => length(val) for (key, val) in allocations(clientele) )
+    if total
+        return sum(values(d))
+    else
+        return d
+    end
+end
+
 function nfree(clientele::Clientele; total=false)
     d = Dict( key => capacity(key) - length(val)
               for (key, val) in allocations(clientele) )
@@ -44,9 +55,15 @@ function nfree(clientele::Clientele; total=false)
         return d
     end
 end
+
+function pfree(clientele::Clientele)
+    return nfree(clientele; total=true) / capacity(clientele)
+end
+
 anyfree(clientele::Clientele) = nfree(clientele; total=true) > 0
 freemanagers(clientele::Clientele) = [ m for m in managers(clientele)
                                          if nfree(clientele)[m] > 0 ]
+
 
 @kwdef mutable struct Task
     date::Union{Date, Nothing} = nothing # Date of allocation, not of event.

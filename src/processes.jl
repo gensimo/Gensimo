@@ -1,5 +1,5 @@
 using Agents
-using Dates, Random, Distributions
+using Dates, Random, Distributions, StatsBase
 
 function simulate!(conductor::Conductor)
     model = initialise(conductor)
@@ -95,9 +95,24 @@ function nopen(clientele::Clientele)
     end
 end
 
-function nopen(model::AgentBasedModel)
+function nopenrequests(model::AgentBasedModel)
     # Return number of open requests --- i.e. everything waiting to be queued.
     return sum([ nopen(clientele) for clientele in clienteles(model) ])
+end
+
+function nwaiting(model::AgentBasedModel)
+    return length([ c for c in clients(model) if iswaiting(c, date(model)) ])
+end
+
+function nopenclients(model::AgentBasedModel)
+    return length([ c for c in clients(model) if isopen(c, date(model)) ])
+end
+
+function qoccupation(model::AgentBasedModel)
+    totalcapacity = sum([capacity(c) for c in clienteles(model)])
+    totalfree = sum([nfree(c; total=true) for c in clienteles(model)])
+    # Deliver fraction of total queue capacity used.
+    return (totalcapacity - totalfree) / totalcapacity
 end
 
 function satisfaction(model::AgentBasedModel)
@@ -106,7 +121,7 @@ function satisfaction(model::AgentBasedModel)
                        ; denialmultiplier = model.context[:denialmultiplier]
                        , irksusceptibility = model.context[:irksusceptibility] )
           for client in clients(model)
-          if isactive(client, date(model)) ]
+          if isopen(client, date(model)) ]
     # Deliver.
     if isempty(σs)
         return 100.0*mean(σ₀.(clients(model)))
@@ -175,6 +190,10 @@ function nevents(model::AgentBasedModel; cumulative=false)
     return eventcount
 end
 
+function nclients(model::AgentBasedModel)
+    return length(clients(model))
+end
+
 function nactive(model::AgentBasedModel)
     agents = model |> allagents |> collect |> values
     clients = [ agent for agent in agents if typeof(agent) == Client ]
@@ -214,6 +233,17 @@ function cost(model::AgentBasedModel; cumulative=false)
     end
     # Deliver.
     return totalcost
+end
+
+function cost_mediancum(model::AgentBasedModel)
+    xs = [ cost(c, model; cumulative=true)
+           for c in clients(model)
+           if !isempty(events(c)) ]
+    if isempty(xs)
+        return 0
+    else
+        return median(xs)
+    end
 end
 
 function workload(model::AgentBasedModel; cumulative=false)
@@ -426,6 +456,12 @@ function step_client!(client::Client, model::AgentBasedModel)
     update_client!( client, date(model)
                   ; λ=new_λ
                   , σ )
+
+    # Update client's 'position'.
+    days = (date(client) - dayzero(client)).value |> float
+    geld = minimum([cost(client, cumulative=true)[2][end], 10000])
+    position = (days, geld)
+    move_agent!(client, position, model)
 end
 
 function tier(client::Client, model::AgentBasedModel)
