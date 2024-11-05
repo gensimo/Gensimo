@@ -281,6 +281,24 @@ function datesplots( dateses::Vector{Vector{Date}} # List of lists of dates.
     return fig, axes, plt
 end
 
+function tracesplot(traces::DataFrame; nodates=true)
+    # First column is always the dates.
+    n = ncol(traces) - 1
+    # One may want the horizontal axes labels ("Date") suppressed.
+    if nodates
+        xlabels = [ "" for i ∈ 1:n ]
+    else
+        xlabels = [ "Date" for i in 1:n ]
+    end
+    # Give it all to datesplots() which will display it.
+    fig, axes, plt = datesplots( [ traces.date for i ∈ 1:n]
+                               , [ traces[:, i+1] for i ∈ 1:n ]
+                               ; xlabels
+                               , ylabels=names(traces)[2:end] )
+    # Deliver the objects also.
+    return fig, axes, plt
+end
+
 function nactiveplot( conductor::Conductor
                     ; tiers=[1, 2, 3]
                     , percentages=false

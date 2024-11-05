@@ -1,10 +1,63 @@
 using Agents
-using Dates, Random, Distributions, StatsBase
+using Dates, Random, Distributions, StatsBase, DataFrames
 
 function simulate!(conductor::Conductor)
     model = initialise(conductor)
     step!( model
          , length(model.epoch:Day(1):model.eschaton) - 1 ) # Up to eschaton.
+end
+
+function trace!(conductor::Conductor; fun, nsteps=nothing, dates=false)
+    # Make a model.
+    model = initialise(conductor)
+    # Prepare an array for the output by filling it with zeroeth-step element.
+    output = [fun(model)]
+    # Likewise for the dates array.
+    days = [date(model)]
+    # Infer nsteps if necessary.
+    if isnothing(nsteps)
+        nsteps = length(model.epoch:Day(1):model.eschaton) - 1 # Up to eschaton.
+    end
+    # Step through the simulation, filling the arrays.
+    for t ∈ 1:nsteps
+        step!(model)
+        push!(days, date(model))
+        push!(output, fun(model))
+    end
+    # Deliver the time series as [outputs] or as ([dates], [outputs]).
+    if dates
+        return days, outputs
+    else
+        return output
+    end
+end
+
+function traces!(conductor::Conductor; funs, nsteps=nothing)
+    # Make a model.
+    model = initialise(conductor)
+    # Prepare arrays for output by filling them with zeroeth-step element.
+    outputs = [ [Float64(funs[i](model))] for i in 1:length(funs) ]
+    # Likewise for the dates array.
+    days = [date(model)]
+    # Infer nsteps if necessary.
+    if isnothing(nsteps)
+        nsteps = length(model.epoch:Day(1):model.eschaton) - 1 # Up to eschaton.
+    end
+    # Step through the simulation, filling the arrays.
+    for t ∈ 1:nsteps
+        # One step at a time.
+        step!(model)
+        # Current model date needs to be written to array only once.
+        push!(days, date(model))
+        # Obtain the output for each function successively.
+        for i in 1:length(funs)
+            push!(outputs[i], funs[i](model))
+        end
+    end
+    xs = [ :date=>days
+         , [Symbol(funs[i])=>outputs[i] for i in 1:length(funs)]... ]
+    # Deliver as DataFrame.
+    return DataFrame(xs)
 end
 
 function initialise( conductor::Conductor
@@ -347,7 +400,10 @@ function step_client!(client::Client, model::AgentBasedModel)
         # 1. Segmentation.
         segment!(client, model)
         # 2. Allocation to Clientele, i.e. add to pool or portfolio.
-        if tier(client, model) == model.context[:ntiers]
+        if model.context[:ntiers] == 1
+            # If there is just one tier, allocation is arbitrary.
+            push!(rand(abmrng(model), clienteles(model)), client)
+        elseif tier(client, model) == model.context[:ntiers]
             # If in highest tier, add to a random portfolio.
             push!(rand(abmrng(model), portfolios(model)), client)
         else
@@ -446,7 +502,7 @@ function step_client!(client::Client, model::AgentBasedModel)
                     , irksusceptibility = model.context[:irksusceptibility] )
     new_p = .5*(σ₀(client) - σ) / σ₀(client) # .5 if no satisfaction - or less.
     # Iatrogenics from allied health provider's rfactor (if applicable).
-    new_p /= provider_rfactor # Divisor == 1.0 if not applicable.
+    new_p *= 2 / (1 + provider_rfactor) # Keeps 0 <= p <= 1.
     # Determine new hazard rate, incorporating iatrogenic factors.
     new_λ = stap( 1                       # One step at a time.
                 , λ(client)               # From the current hazard rate.

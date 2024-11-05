@@ -69,14 +69,14 @@ export initialise, simulate!,
        ntasks, nopen, provides,
        next_request, next_requests,
        portfolios, pools,
-       type, qoccupation
+       type, qoccupation, trace!, traces!
 
 # Include and export essentials from display.jl.
 include("display.jl")
 export baseplot, gplot, datesplot,
        costseriesplot, costseriesplot_ensemble, costseriesplot_tiled,
        datesplots, clientplot, conductorplot, nactiveplot,
-       dashboard
+       dashboard, tracesplot
 
 # Export everything this module defines up to here.
 for n in names(@__MODULE__; all=true)

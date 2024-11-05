@@ -263,7 +263,7 @@ Base.:(+)(c::Claim, e::Event) = Claim([c.events..., e])
 
 events(c::Claim) = c.events |> sort
 requests(c::Claim) = [ change(event) for event in sort(events(c))
-                       if typeof(change(event)) == Request ]
+                       if change(event) isa Request ]
 
 struct Personalia
     name::String
