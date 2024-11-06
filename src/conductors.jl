@@ -148,7 +148,7 @@ function Conductor( context            # Model parameters.
     for portfolio in portfolios
         index += 1 # Update index for each manager also.
         managers!( portfolio
-                 , [ Manager(index, (0, 0), (0, 0), rand(25:35)) ])
+                 , [ Manager(index, (0, 0), (0, 0), rand(28:32)) ])
     end
     pools = [ Clientele(id=index+i, pos=(0.0, 0.0), vel=(0.0, 0.0))
               for i in 1:npools ]
@@ -156,7 +156,7 @@ function Conductor( context            # Model parameters.
     index += npools
     # Several managers per pool --- given by `nmanagersperpool` list.
     for (n, pool) in enumerate(pools)
-        managers!(pool, [ Manager(index+i, (0, 0), (0, 0), rand(30:50))
+        managers!(pool, [ Manager(index+i, (0, 0), (0, 0), rand(28:32))
                           for i in 1:nmanagersperpool[n] ])
         # Update index with number of managers in this pool.
         index += nmanagersperpool[n]

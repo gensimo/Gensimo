@@ -403,12 +403,12 @@ function step_client!(client::Client, model::AgentBasedModel)
         if model.context[:ntiers] == 1
             # If there is just one tier, allocation is arbitrary.
             push!(rand(abmrng(model), clienteles(model)), client)
-        elseif tier(client, model) == model.context[:ntiers]
-            # If in highest tier, add to a random portfolio.
-            push!(rand(abmrng(model), portfolios(model)), client)
-        else
-            # Otherwise, add to a random pool.
+        elseif tier(client, model) == 1 # model.context[:ntiers]
+            # Only bottom tier clients go to a (random) pool.
             push!(rand(abmrng(model), pools(model)), client)
+        else
+            # Higher tier clients go to a (random) portfolio.
+            push!(rand(abmrng(model), portfolios(model)), client)
         end
     end
 
