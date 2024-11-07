@@ -132,7 +132,7 @@ function Conductor( context            # Model parameters.
     # Generate the clients
     clients = [ Client( id=i, pos=(0.0, 0.0), vel=(0.0, 0.0)
                       , personalia = Personalia()
-                      , history = [ ( rand(epoch:eschaton)# epoch+Year(1)-Day(1))
+                      , history = [ ( rand(epoch:epoch+Year(3)-Day(1))
                                      , State( [ rand(11)...
                                               , .75 + (.5-rand())/2 ] )) ]
                       , claim = Claim() )
