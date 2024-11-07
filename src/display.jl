@@ -310,9 +310,9 @@ function compareplot( tracesdict::Dict
     n = ncol(tracesdict[ks[1]]) - 1
     # One may want the horizontal axes labels ("Date") suppressed.
     if nodates
-        xlabels = [ "" for i ∈ 1:n ]
+        xlabels = [ "" for i ∈ 1:length(ks) ]
     else
-        xlabels = [ "Date" for i in 1:n ]
+        xlabels = [ "Date" for i in 1:length(ks) ]
     end
     # Give it all to datesplots() which will display it.
     fig, axes, plt = datesplots( [ tracesdict[k].date for k ∈ ks ]
