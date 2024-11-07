@@ -212,6 +212,7 @@ function datesplots( dateses::Vector{Vector{Date}} # List of lists of dates.
                    , ylimses=nothing # List of tuples or vectors.
                    , maxdates=20
                    , linked=:all
+                   , onscreen=true
                    )
     n = length(dateses)
     # Use a decent Garamond for the plot.
@@ -275,8 +276,10 @@ function datesplots( dateses::Vector{Vector{Date}} # List of lists of dates.
     else
         linkxaxes!([axes[i] for i in linked]...)
     end
-    # Show me what you got.
-    display(fig)
+    # Show me what you got --- if requested.
+    if onscreen
+        display(fig)
+    end
     # Deliver.
     return fig, axes, plt
 end
@@ -300,7 +303,7 @@ function tracesplot(traces::DataFrame; nodates=true)
 end
 
 function compareplot( tracesdict::Dict
-                    ; column::Symbol, nodates=true )
+                    ; column::Symbol, nodates=true, onscreen=true )
     # Get all the keys.
     ks = collect(keys(tracesdict))
     # First column is always the dates.
@@ -315,7 +318,14 @@ function compareplot( tracesdict::Dict
     fig, axes, plt = datesplots( [ tracesdict[k].date for k ∈ ks ]
                                , [ tracesdict[k][:, column] for k ∈ ks ]
                                ; xlabels
-                               , ylabels=[string(k, "\n", column) for k ∈ ks] )
+                               , ylabels=[string(k, "\n", column) for k ∈ ks]
+                               , onscreen=false )
+    # Link the vertical axes so they have the same scale.
+    linkaxes!(axes...)
+    # Show me what you got --- if requested.
+    if onscreen
+        display(fig)
+    end
     # Deliver the objects also.
     return fig, axes, plt
 end
