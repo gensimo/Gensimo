@@ -299,6 +299,27 @@ function tracesplot(traces::DataFrame; nodates=true)
     return fig, axes, plt
 end
 
+function compareplot( tracesdict::Dict
+                    ; column::Symbol, nodates=true )
+    # Get all the keys.
+    ks = collect(keys(tracesdict))
+    # First column is always the dates.
+    n = ncol(tracesdict[ks[1]]) - 1
+    # One may want the horizontal axes labels ("Date") suppressed.
+    if nodates
+        xlabels = [ "" for i ∈ 1:n ]
+    else
+        xlabels = [ "Date" for i in 1:n ]
+    end
+    # Give it all to datesplots() which will display it.
+    fig, axes, plt = datesplots( [ tracesdict[k].date for k ∈ ks ]
+                               , [ tracesdict[k][:, column] for k ∈ ks ]
+                               ; xlabels
+                               , ylabels=[string(k, "\n", column) for k ∈ ks] )
+    # Deliver the objects also.
+    return fig, axes, plt
+end
+
 function nactiveplot( conductor::Conductor
                     ; tiers=[1, 2, 3]
                     , percentages=false

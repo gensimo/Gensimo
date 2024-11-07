@@ -161,9 +161,14 @@ change(e::Event) = e.change
 Base.isless(e1::Event, e2::Event) = date(e1) < date(e2)
 duration(e::Event) = isnothing(term(e)) ? 0 : (term(e) - date(e)).value
 
-function cost(event::Event)
+function cost(event::Event; ignorestatus=false)
     if event |> change |> typeof == Request
-        return event |> change |> cost
+        r = change(event)
+        if ignorestatus
+            return cost(r)
+        else
+            return approved(r) ? cost(r) : 0.0
+        end
     else
         return 0.0
     end

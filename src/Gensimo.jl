@@ -65,8 +65,8 @@ export initialise, simulate!,
        clienteles, clientele,
        client_step!, agent_step!, model_step!,
        stap, walk, nrequests, requests,
-       nevents, cost, cost_meancum, nactive, nclients, workload,
-       ntasks, nopen, provides,
+       nevents, cost, cost_cumulative, cost_meancum, nactive, nclients,
+       workload, ntasks, nopen, provides,
        next_request, next_requests,
        portfolios, pools,
        type, qoccupation, trace!, traces!
@@ -76,7 +76,7 @@ include("display.jl")
 export baseplot, gplot, datesplot,
        costseriesplot, costseriesplot_ensemble, costseriesplot_tiled,
        datesplots, clientplot, conductorplot, nactiveplot,
-       dashboard, tracesplot
+       dashboard, tracesplot, compareplot
 
 # Export everything this module defines up to here.
 for n in names(@__MODULE__; all=true)

@@ -288,6 +288,10 @@ function cost(model::AgentBasedModel; cumulative=false)
     return totalcost
 end
 
+function cost_cumulative(model::AgentBasedModel)
+    return cost(model; cumulative=true)
+end
+
 function cost_mediancum(model::AgentBasedModel)
     xs = [ cost(c, model; cumulative=true)
            for c in clients(model)

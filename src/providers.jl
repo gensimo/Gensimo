@@ -69,14 +69,14 @@ function make_provider_template(menu; type=:vanilla)
     elseif type == :martyr
         return ( menu=scale(menu, .75) # Undercharging at 75%
                , capacity=10           # Default capacity.
-               , sfactor=1.5           # Overservicing by 50%
-               , rfactor=.75           # Reduced recovery at 75%
+               , sfactor=2.0           # Overservicing by 50%
+               , rfactor=.50           # Reduced recovery at 75%
                )
     # Emerging businesses overservice and overcharge. No iatrogenics.
     elseif type == :emerging
         return ( menu=scale(menu, 1.25) # Overcharging by 25%
                , capacity=10            # Default capacity.
-               , sfactor=1.5            # Overservicing by 50%
+               , sfactor=2.0            # Overservicing by 50%
                , rfactor=1.0            # No iatrogenics.
                )
     # Established businesses overcharge but don't overservice. Pos. iatrogenics.
@@ -84,21 +84,21 @@ function make_provider_template(menu; type=:vanilla)
         return ( menu=scale(menu, 1.25) # Overcharging by 25%
                , capacity=10            # Default capacity.
                , sfactor=1.0            # No overservicing.
-               , rfactor=1.5            # Improved outcomes.
+               , rfactor=2.0            # Improved outcomes.
                )
     # Frauds overservice and overcharge. Iatrogenics: impaired recovery.
     elseif type == :fraud
         return ( menu=scale(menu, 1.25) # Overcharging by 25%
                , capacity=10            # Default capacity.
-               , sfactor=1.5            # Overservicing by 50%
-               , rfactor=.75            # Recovery impaired at 75%.
+               , sfactor=2.0            # Overservicing by 50%
+               , rfactor=.50            # Recovery impaired at 75%.
                )
     # Incompetents don't overservice or charge. Iatrogenics: impaired recovery.
     elseif type == :incompetent
         return ( menu=menu              # No over- or undercharging.
                , capacity=10            # Default capacity.
                , sfactor=1.0            # No overservicing.
-               , rfactor=.75            # Recovery impaired at 75%.
+               , rfactor=.50            # Recovery impaired at 75%.
                )
     else
         error("Unkown provider type: $type")
