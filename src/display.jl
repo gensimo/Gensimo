@@ -302,7 +302,7 @@ function tracesplot(traces::DataFrame; nodates=true)
     return fig, axes, plt
 end
 
-function compareplot( tracesdict::Dict
+function compareplot( tracesdict::AbstractDict
                     ; column::Symbol, nodates=true, onscreen=true )
     # Get all the keys.
     ks = collect(keys(tracesdict))
