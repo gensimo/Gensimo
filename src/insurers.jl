@@ -19,6 +19,7 @@ capacity(m::Manager) = m.capacity
 @agent struct Clientele(ContinuousAgent{2, Float64})
     clients::Vector{Client} = Client[]
     managers::Dict{Manager, Vector} = Dict()
+    cap::Integer = 30
 end
 
 # Constructors.

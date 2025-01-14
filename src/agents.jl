@@ -53,7 +53,7 @@ population2 = Dict( :vanilla     => .1
                   # for i in n+2:n+4 ])
 
 
-using XLSX
+using XLSX, DataFrames
 
 # Load the scenarios file
 xs = XLSX.readxlsx("scenarios.xlsx")
@@ -64,7 +64,7 @@ scenario1 = shs[2]
 # Load Scenario 1.
 df1 = DataFrame(XLSX.readtable("scenarios.xlsx", scenario1))
 # Get the actual parameters of the scenario.
-sc1 = Dict(Symbol.(df[:, 1]) .=> df[:, 2])
+sc1 = Dict(Symbol.(df1[:, 1]) .=> df1[:, 2])
 # Fix `nmanagersperpool`.
 nmpp = parse.(Integer, [ sc1[:nmanagersperpool][1], sc1[:nmanagersperpool][4] ])
 sc1[:nmanagersperpool] = nmpp
