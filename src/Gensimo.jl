@@ -40,7 +40,7 @@ include("insurers.jl")
 export Clientele, Manager, ClientAssistant, ClaimsManager,
        capacity, allocations, nallocations, nfree, pfree, anyfree, freemanagers,
        Task, tasks, close!, allocate!, requestedon, allocatedon,
-       ispool, isport, isportfolio, managers
+       ispool, isport, isportfolio, managers, cap
 
 # Include and export essentials from providers.jl.
 include("providers.jl")

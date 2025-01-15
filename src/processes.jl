@@ -113,6 +113,11 @@ function clienteles(model::AgentBasedModel)
     return model.clienteles
 end
 
+function clienteles(model::AgentBasedModel; tier=Nothing)
+    # Should be overridden and implemented in application specific modules.
+    return model.clienteles
+end
+
 function clientele(manager::Manager, model::AgentBasedModel)
     for clientele in clienteles(model)
         for manager′ in managers(clientele)
