@@ -1,15 +1,6 @@
 using Agents
 
 
-# @multiagent struct InsuranceWorker(ContinuousAgent{2, Float64})
-    # @subagent struct ClientAssistant
-        # capacity::Int64 # Number of concurrent tasks the worker can work on.
-    # end
-    # @subagent struct ClaimsManager
-        # capacity::Int64 # Number of concurrent tasks the worker can work on.
-    # end
-# end
-
 @agent struct Manager(ContinuousAgent{2, Float64})
     capacity::Int64 # Number of concurrent tasks this manager can work on.
 end

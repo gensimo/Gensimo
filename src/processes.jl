@@ -397,6 +397,19 @@ function step_clientele!(clientele::Clientele, model::AgentBasedModel)
     end
 end
 
+function allocate!(client::Client, model::AgentBasedModel)
+    if model.context[:ntiers] == 1
+        # If there is just one tier, allocation is arbitrary.
+        push!(rand(abmrng(model), clienteles(model)), client)
+    elseif tier(client, model) == 1 # model.context[:ntiers]
+        # Only bottom tier clients go to a (random) pool.
+        push!(rand(abmrng(model), pools(model)), client)
+    else
+        # Higher tier clients go to a (random) portfolio.
+        push!(rand(abmrng(model), portfolios(model)), client)
+    end
+end
+
 function onboard!(client::Client, model::AgentBasedModel)
     # 1. Segmentation.
     segment!(client, model)
@@ -420,6 +433,15 @@ function step_client!(client::Client, model::AgentBasedModel)
     if τ(client, today) < 0
         return # Client's time has not come yet. Move to next day.
     end
+    # Has the client been segmented? If not, do so.
+    if !issegmented(client)
+        segment!(client, model)
+    end
+    # Has the client been allocated to a `Clientele`?
+    if !isallocated(client)
+        allocate!(client, model) # TODO: What if this fails because over cap?
+    end
+
     # Has the client been onboarded?
     if !isonscheme(client) # TODO: See `onscheme()` function.
         onboard!(client, model)

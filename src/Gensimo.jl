@@ -23,6 +23,8 @@ export Personalia,
        name, age, sex
 export Segment,
        tier, label, division, branch, team, manager
+export Allocation,
+       clientele
 export Package,
        label, fromto, cover, plans, term, term!, enddate, enddate!,
        firstday, lastday, isactive, iscovered, coverleft, coveredin,

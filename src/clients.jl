@@ -138,10 +138,18 @@ denied(request::Request) = status(request) == :denied
 cost(request::Request) = request.cost
 cost!(request::Request, c) = request.cost = c
 
+@kwdef mutable struct Allocation{T}
+    clientele::T
+    Allocation(c) = new{Clientele}(c)
+end
+
+clientele(allocation::Allocation) = allocation.clientele
+
 mutable struct Event
     date::Date # When did the change to the claim occur?
     change::Union{ Integer # The assessment, e.g. NIDS.
                  , Segment
+                 , Allocation
                  , Request }
     term::Union{ Date      # When did the change to the claim close?
                , Nothing } # Or 'nothing' if event has no duration.
@@ -208,6 +216,7 @@ function labour(event::Event)
     typeofchange = event |> change |> typeof
     typeofchange == Request && return event |> change |> labour
     typeofchange == Segment && return 0.0
+    typofchange == Allocation && return 0.0
     typeofchange <: Integer && return 0.0
     typeofchange == Package && return 0.0
 end
@@ -394,6 +403,15 @@ function segment(client::Client)
     end
 end
 issegmented(client::Client) = !isnothing(client |> segment)
+function allocation(client::Client)
+    allocevents = [ e for e in events(client) if change(e) isa Allocation ]
+    if isempty(allocevents)
+        return nothing
+    else
+        return allocevents[end] |> change |> clientele
+    end
+end
+isallocated(client::Client) = !isnothing(client |> allocation)
 isonscheme = issegmented # TODO: On-scheme may include more than segmentation.
 
 """NB: NIDS of a `Client` gives assesed NIDS != nids(client |> state)."""
