@@ -368,6 +368,7 @@ function step_manager!(manager::Manager, model::AgentBasedModel)
             if requestedon(t) - dayzero(client(t)) <= grace
                 # Approve, log in event, request and clear from task list.
                 close!(t, today; status=:approved, labour)
+            # If client is allocated and grace period has passed, scrutinise.
             else
                 # TODO: Put in deliberation loop.
                 # TODO: Make d-loop dependent on the rarity of the request made?
@@ -397,33 +398,43 @@ function step_clientele!(clientele::Clientele, model::AgentBasedModel)
     end
 end
 
-function allocate!(client::Client, model::AgentBasedModel)
-    if model.context[:ntiers] == 1
-        # If there is just one tier, allocation is arbitrary.
-        push!(rand(abmrng(model), clienteles(model)), client)
-    elseif tier(client, model) == 1 # model.context[:ntiers]
-        # Only bottom tier clients go to a (random) pool.
-        push!(rand(abmrng(model), pools(model)), client)
+function allocate!(clientele::Clientele, client::Client)
+    # Successfull allocation happen if clientele has not reached cap yet.
+    if !isatcap(clientele)
+        # Do the allocating.
+        push!(clientele, client)
+        # Deliver the changed clientele for further handling.
+        return clientele
     else
-        # Higher tier clients go to a (random) portfolio.
-        push!(rand(abmrng(model), portfolios(model)), client)
+        # Return a nothing for easy testing.
+        return nothing
     end
 end
 
-function onboard!(client::Client, model::AgentBasedModel)
-    # 1. Segmentation.
-    segment!(client, model)
-    # 2. Allocation to Clientele, i.e. add to pool or portfolio.
+function allocate!(client::Client, model::AgentBasedModel)
     if model.context[:ntiers] == 1
-        # If there is just one tier, allocation is arbitrary.
-        push!(rand(abmrng(model), clienteles(model)), client)
+        # If there is just one tier, allocate to arbitrary available clientele.
+        availablecs = filter(!isatcap, clienteles(model))
     elseif tier(client, model) == 1 # model.context[:ntiers]
-        # Only bottom tier clients go to a (random) pool.
-        push!(rand(abmrng(model), pools(model)), client)
+        # Bottom tiers go to pools. Find available pools, if any.
+        availablecs = filter(!isatcap, pools(model))
     else
-        # Higher tier clients go to a (random) portfolio.
-        push!(rand(abmrng(model), portfolios(model)), client)
+        # Higher tiers go to portfolios. Find available portfolios, if any.
+        availablecs = filter(!isatcap, portfolios(model))
     end
+    # Finally, do the allocation if there is any availability.
+    if !isempty(availablecs)
+        # Allocate the client to one of the available relevant clienteles.
+        clientele = allocate!(rand(abmrng(model), availablecs), client)
+        # Make an `Allocation` object and `Event`.
+        e = Event(date(model), Allocation(clientele))
+        # Add the event to the client's claim.
+        push!(client, e)
+    else
+        clientele = nothing
+    end
+    # Deliver the changed clientele.
+    return clientele
 end
 
 function step_client!(client::Client, model::AgentBasedModel)
@@ -439,12 +450,8 @@ function step_client!(client::Client, model::AgentBasedModel)
     end
     # Has the client been allocated to a `Clientele`?
     if !isallocated(client)
-        allocate!(client, model) # TODO: What if this fails because over cap?
-    end
-
-    # Has the client been onboarded?
-    if !isonscheme(client) # TODO: See `onscheme()` function.
-        onboard!(client, model)
+        # If allocation fails because of no capacity, then clientele == nothing.
+        clientele = allocate!(client, model)
     end
 
     # # Any requests due today from a plan in the client's package?
@@ -529,8 +536,38 @@ function step_client!(client::Client, model::AgentBasedModel)
         end
     end
 
-    # Recovery and iatrogenics.
-    #
+    # ################################################################### #
+    # If this is an as-yet unallocated client, approve all open requests. #
+    # ################################################################### #
+
+    if !isallocated(client) # Can also test `isnothing(clientele)`.
+        # Get all events of this client that are open requests.
+        es = [ e for e ∈ events(client) if typeof(change(e)) == Request
+                                        && status(change(e)) == :open ]
+        # Compute labour involved from the average #days to decision.
+        days = model.context[:daystodecision]
+        # Close each request and give each event an end date (in the future!).
+        for e in es
+            r = change(e)
+            # How many days to decision on average for this service request?
+            ndays = Day(round(Int, days[label(r)]))
+            # Compute the labour involved --- TODO: Naive.
+            work = ndays.value * 8.0 / 30 # 30 is mean capacity of managers.
+            # Update the request with the labour and close it.
+            labour!(r, work)
+            status!(r, :closed)
+            # Set the term (closing) date of the event to today.
+            term!(e, today)
+        end
+    end
+
+    #                  End of approving all open requests                 #
+    # ################################################################### #
+
+    # ################################################################### #
+    # Recovery and iatrogenics.                                           #
+    # ################################################################### #
+
     # Iatrogenics from client satisfaction.
     σ = satisfaction( client, today
                     ; denialmultiplier = model.context[:denialmultiplier]
@@ -547,6 +584,9 @@ function step_client!(client::Client, model::AgentBasedModel)
     update_client!( client, date(model)
                   ; λ=new_λ
                   , σ )
+
+    #                    End of recovery and iatrogenics                  #
+    # ################################################################### #
 
     # Update client's 'position'.
     days = (date(client) - dayzero(client)).value |> float

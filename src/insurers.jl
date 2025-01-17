@@ -19,8 +19,11 @@ Clientele(n::Integer) = Clientele( id=1, pos=(0, 0), vel=(0, 0)
 
 # Assorted accessors and mutators.
 clients(clientele::Clientele) = clientele.clients
+nclients(clientele::Clientele) = clientele |> clients |> length
 managers(clientele::Clientele) = keys(clientele.managers) |> collect
+nmanagers(clientele::Clientele) = clientele |> managers |> length
 cap(clientele::Clientele) = clientele.cap
+isatcap(clientele::Clientele) = nclients(clientele) >= cap(clientele)
 isportfolio(clientele::Clientele) = length(managers(clientele)) == 1
 isport(clientele::Clientele) = isportfolio(clientele)
 ispool(clientele::Clientele) = length(managers(clientele)) > 1

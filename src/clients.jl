@@ -155,7 +155,7 @@ mutable struct Event
                , Nothing } # Or 'nothing' if event has no duration.
 end
 
-function Event(date::Date, change::Union{Integer, Segment, Request})
+function Event(date::Date, change::Union{Integer, Segment, Request, Allocation})
     return Event(date, change, nothing)
 end
 
@@ -629,7 +629,7 @@ function Base.show(io::IO, claim::Claim)
 end
 
 function Base.show(io::IO, event::Event)
-    if !isnothing(term(event)) # Does the event have positive duration.
+    if !isnothing(term(event)) # Does the event have positive duration?
         dstring = string(" > ", term(event), " (", duration(event), " days)")
     else
         dstring = ""
@@ -641,10 +641,10 @@ function Base.show(io::IO, event::Event)
              , change(event)
              )
     elseif typeof(change(event)) == Request
-        type = typeof(item(change(event)))
-        type = type==String ? "service" : lowercase(string(type))
+        t = typeof(item(change(event)))
+        t = t==String ? "service" : lowercase(string(t))
         print( io
-             , "  ", date(event), " > ", type, " request"
+             , "  ", date(event), " > ", t, " request"
              , dstring, "\n"
              , "  | ", change(event)
              )
@@ -653,6 +653,12 @@ function Base.show(io::IO, event::Event)
              , "  ", date(event), " > assessment"
              , dstring, "\n"
              , "  | ", "NIDS: ", change(event)
+             )
+    elseif typeof(change(event)) == Allocation{Clientele}
+        print( io
+             , "  ", date(event), " > allocation"
+             , dstring, "\n"
+             , "  | ", "Allocation to clientele (e.g. pool or portfolio)"
              )
     end
 end
