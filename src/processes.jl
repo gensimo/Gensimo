@@ -60,9 +60,110 @@ function traces!(conductor::Conductor; funs, nsteps=nothing)
     return DataFrame(xs)
 end
 
+function initialise( context::Context # Constants (settings and parameters).
+                   , scenarios::Vector{Scenario} # Variable ranges.
+                   , seed = nothing
+                   )
+    # If no seed provided, get the pseudo-randomness from device.
+    isnothing(seed) ? seed = rand(RandomDevice(), 0:2^16) : seed
+    rng = Xoshiro(seed)
+    # Create a 'continuous' space.
+    dimensions = ( context |> timeline |> length |> float # For days>dayzero.
+                 , 10000.0                                # For $.
+                 )
+    space = ContinuousSpace(dimensions, spacing=1.0, periodic=false)
+    # Set up the model(s) --- one model for each scenario.
+    models = AgentBasedModel[]
+    for i in 1:length(scenarios)
+        # Any shared params in `context` and `scenario` uses the _latter_.
+        properties = merge(context, scenarios[i])
+        # Prepare an `AgentBasedModel` object.
+        model = StandardABM( Union{ Client
+                                  , Clientele
+                                  , Manager
+                                  , Provider }
+                            , space
+                            ; properties
+                            , warn = false
+                            , agent_step! = step_agent!
+                            , model_step! = step_model!
+                            , rng )
+        # Add clients.
+        for i in 1:properties[:nclients]
+            # Random day zero in the first three years since simulation start.
+            day0 = rand( rng
+                        , properties[:epoch]:( properties[:epoch]
+                                             + Year(3)
+                                             - Day(1) ) )
+            state0 = State( [ rand(11)..., .75 + (.5-rand())/2 ] )
+            add_agent!( (0.0, 0.0) # Position.
+                      , Client # Agent type.
+                      , model # To which it should be added.
+                      ; vel = (0.0, 0.0)
+                      , personalia = Personalia() # Random personalia.
+                      , history = [ ( day0, state0) ]
+                      , claim = Claim() # Empty claim.
+                      )
+        end
+        # Add clienteles --- portfolios.
+        for i in 1:properties[:nportfolios]
+            # Add the `Clientele` agent.
+            portfolio = add_agent!( (0.0, 0.0) # Position.
+                                  , Clientele # Agent type.
+                                  , model # To which it should be added.
+                                  ; vel = (0.0, 0.0)
+                                  )
+            # A portfolio is a clientele with just one manager.
+            manager = add_agent!( (0.0, 0.0) # Position.
+                                , Manager # Agent type.
+                                , model # To which it should be added.
+                                ; vel = (0.0, 0.0)
+                                , capacity = rand(rng, 28:32) # Task capacity.
+                                )
+            # Add the manager to the portfolio also.
+            managers!(portfolio, [manager])
+        end
+        # Add clienteles --- pools.
+        for i in 1:length(properties[:nmanagersperpool])
+            # Add the `Clientele` agent.
+            pool = add_agent!( (0.0, 0.0) # Position.
+                             , Clientele # Agent type.
+                             , model
+                             ; vel = (0.0, 0.0)
+                             ) # To which it should be added.
+            # Each pool has at least two managers.
+            nmanagers = properties[:nmanagersperpool][i]
+            managers = [ add_agent!( (0.0, 0.0) # Position.
+                                   , Manager # Agent type.
+                                   , model # To which it should be added.
+                                   ; vel = (0.0, 0.0)
+                                   , capacity = rand(rng, 28:32) # Task capacity
+                                   )
+                         for i in 1:nmanagers ]
+            # Add the managers to the pool also.
+            managers!(pool, managers)
+        end
+        # Add providers.
+        providers = Provider[]
+        menu = Dict( s => context[:costs][s]
+                     for s in context[:alliedhealthservices] )
+        for (key, val) in properties[:providerpopulation]
+            add_agent!( (0.0, 0.0) # Position.
+                      , Provider # Agent type.
+                      , model # To which it should be added.
+                      ; vel = (0.0, 0.0)
+                      , make_provider_template(menu, type=key)... )
+        end
+        # Add the model to the list.
+        push!(models, model)
+    end
+    # Deliver.
+    return models
+end
+
 function initialise( conductor::Conductor
                    , seed = nothing )
-    # If no seed provided, get the pseudo-randomness from device.
+# If no seed provided, get the pseudo-randomness from device.
     isnothing(seed) ? seed = rand(RandomDevice(), 0:2^16) : seed
     rng = Xoshiro(seed)
     # Create a 'continuous' space.
@@ -176,8 +277,8 @@ end
 function satisfaction(model::AgentBasedModel)
     # Return mean satisfaction as a percentage.
     σs = [ satisfaction( client, date(model)
-                       ; denialmultiplier = model.context[:denialmultiplier]
-                       , irksusceptibility = model.context[:irksusceptibility] )
+                       ; denialmultiplier = model.denialmultiplier
+                       , irksusceptibility = model.irksusceptibility )
           for client in clients(model)
           if isopen(client, date(model)) ]
     # Deliver.
@@ -208,14 +309,14 @@ end
 
 function type(provider::Provider, model::AgentBasedModel)
     # Get all the available provider types in this model.
-    types = model.context[:providerpopulation] |> keys |> collect
+    types = model.providerpopulation |> keys |> collect
     # Obtain the template of this provider to compare with.
     ptemplate = template(provider)
     # In case there are no matches.
     ptype = nothing
     # Re-construct the allied health service menu of this model.
-    menu = Dict( s => model.context[:costs][s]
-                 for s in model.context[:alliedhealthservices] )
+    menu = Dict( s => model.costs[s]
+                 for s in model.alliedhealthservices )
     # Compare provider template against available types.
     for type in types
         if ptemplate == make_provider_template(menu; type)
@@ -347,13 +448,13 @@ function step_manager!(manager::Manager, model::AgentBasedModel)
     # Today's date as per the model's calendar.
     today = date(model)
     # Get the number of days grace period.
-    grace = Day(model.context[:graceperiod])
+    grace = Day(model.graceperiod)
     # Get the probability of approval.
-    p = model.context[:approvalrate]
+    p = model.approvalrate
     # Get the manager's allocated tasks.
     ts = tasks(manager, model)
     # Get the base number of hours to decision for each service.
-    days = model.context[:daystodecision]
+    days = model.daystodecision
     # For each task, check if it is overdue and process it accordingly.
     for t in ts
         # How many days to decision on average for this service request?
@@ -378,7 +479,7 @@ function step_manager!(manager::Manager, model::AgentBasedModel)
                     close!(t, today; status=:approved, labour)
                 else
                     # More labour for denied requests.
-                    labour *= model.context[:denialmultiplier]
+                    labour *= model.denialmultiplier
                     close!(t, today; status=:denied, labour)
                 end
             end
@@ -412,10 +513,10 @@ function allocate!(clientele::Clientele, client::Client)
 end
 
 function allocate!(client::Client, model::AgentBasedModel)
-    if model.context[:ntiers] == 1
+    if model.ntiers == 1
         # If there is just one tier, allocate to arbitrary available clientele.
         availablecs = filter(!isatcap, clienteles(model))
-    elseif tier(client, model) == 1 # model.context[:ntiers]
+    elseif tier(client, model) == 1 # model.ntiers
         # Bottom tiers go to pools. Find available pools, if any.
         availablecs = filter(!isatcap, pools(model))
     else
@@ -474,10 +575,10 @@ function step_client!(client::Client, model::AgentBasedModel)
             # TODO: Set status as :covered and cost = 0 (as cover is paid).
             # TODO: Decrement cover, if applicable.
         # An allied health service request spawns a process with a Provider.
-        elseif service ∈ model.context[:alliedhealthservices]
+        elseif service ∈ model.alliedhealthservices
             # If this service is already in a plan/package, skip it.
             # Find a random provider who can offer the service.
-            ppop = model.context[:providerpopulation]
+            ppop = model.providerpopulation
             ptype = sample( abmrng(model)
                           , collect(keys(ppop))
                           , Weights(collect(values(ppop))) )
@@ -489,11 +590,11 @@ function step_client!(client::Client, model::AgentBasedModel)
             # Over- or underservice this number as per provider type.
             m = round(Int64, n * sfactor(provider))
             # Maximum number of sessions from the model parameters.
-            cap = model.context[:alliedhealthpackagecap]
+            cap = model.alliedhealthpackagecap
             # Several cases, depending on m.
             if m < 2 # Then just make it a normal service request.
                 # This bypasses the provider --- get default price.
-                price = model.context[:costs][service]
+                price = model.costs[service]
                 # Make a Request with this price.
                 r = Request(item=service, cost=price)
                 # Put the Service Request in an Event.
@@ -526,7 +627,7 @@ function step_client!(client::Client, model::AgentBasedModel)
         # Otherwise, open event and await allocation on the relevant queue.
         else
             # Get default price.
-            price = model.context[:costs][service]
+            price = model.costs[service]
             # Make a Request with this price.
             r = Request(item=service, cost=price)
             # Put the Service Request in an Event.
@@ -545,7 +646,7 @@ function step_client!(client::Client, model::AgentBasedModel)
         es = [ e for e ∈ events(client) if typeof(change(e)) == Request
                                         && status(change(e)) == :open ]
         # Compute labour involved from the average #days to decision.
-        days = model.context[:daystodecision]
+        days = model.daystodecision
         # Close each request and give each event an end date (in the future!).
         for e in es
             r = change(e)
@@ -570,8 +671,8 @@ function step_client!(client::Client, model::AgentBasedModel)
 
     # Iatrogenics from client satisfaction.
     σ = satisfaction( client, today
-                    ; denialmultiplier = model.context[:denialmultiplier]
-                    , irksusceptibility = model.context[:irksusceptibility] )
+                    ; denialmultiplier = model.denialmultiplier
+                    , irksusceptibility = model.irksusceptibility )
     new_p = .5*(σ₀(client) - σ) / σ₀(client) # .5 if no satisfaction - or less.
     # Iatrogenics from allied health provider's rfactor (if applicable).
     new_p *= 2 / (1 + provider_rfactor) # Keeps 0 <= p <= 1.
@@ -597,7 +698,7 @@ end
 
 function tier(client::Client, model::AgentBasedModel)
     # How many service levels are there?
-    ntiers = model.context[:ntiers]
+    ntiers = model.ntiers
     # What level is appropriate for this client? Tiers evenly spread.
     h = hazard(client) # Hazard level, mean of ϕ and ψ --- between 0 and 1.
     tier = 1 # Corresponding to h == 1.
@@ -630,8 +731,8 @@ function nexpected(client::Client, model::AgentBasedModel; service=nothing)
         return round(Int64, N) # Total number of requests expected.
     else
         # Compute expected number of requests for `service` given client's λ.
-        T = model.context[:T] # Markov transition matrix.
-        tolist = model.context[:tolist] # All requestable services.
+        T = model.T # Markov transition matrix.
+        tolist = model.tolist # All requestable services.
         marginal = sum(T, dims=1) / size(T)[1] # Sum out `fromlist` dimension.
         index = findfirst(==(service), tolist) # Index of `service` in the list.
         p = marginal[index] # The desired marginal probability of `service`.
@@ -644,9 +745,9 @@ function requests(client::Client, model::AgentBasedModel)
     # Get the number of requests for today's hazard rate.
     nrs = nrequests(client, abmrng(model))
     # Obtain the necessary data.
-    tolist = model.context[:tolist]
-    fromlist = model.context[:fromlist]
-    T = model.context[:T]
+    tolist = model.tolist
+    fromlist = model.fromlist
+    T = model.T
     # Deduce order of Markov Chain.
     if fromlist[1] isa Tuple
         order = length(fromlist[1])

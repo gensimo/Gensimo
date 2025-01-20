@@ -32,6 +32,9 @@ request_cost(client, base=100.0, rng=nothing) = base*nrequests(client, rng)
 
 const Context = Dict{Symbol, Any}
 distros(context::Context) = context[:distros]
+timeline(context::Context) = context[:epoch]:Day(1):context[:eschaton]
+
+const Scenario = Dict{Symbol, Any}
 
 @kwdef mutable struct Conductor
     context::Context = Context() # Model parameters.
