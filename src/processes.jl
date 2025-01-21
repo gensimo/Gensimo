@@ -32,9 +32,7 @@ function trace!(conductor::Conductor; fun, nsteps=nothing, dates=false)
     end
 end
 
-function traces!(conductor::Conductor; funs, nsteps=nothing)
-    # Make a model.
-    model = initialise(conductor)
+function traces!(model::AgentBasedModel; funs, nsteps=nothing)
     # Prepare arrays for output by filling them with zeroeth-step element.
     outputs = [ [Float64(funs[i](model))] for i in 1:length(funs) ]
     # Likewise for the dates array.
@@ -60,8 +58,18 @@ function traces!(conductor::Conductor; funs, nsteps=nothing)
     return DataFrame(xs)
 end
 
+function traces!(conductor::Conductor; funs, nsteps=nothing)
+    # Make a model.
+    model = initialise(conductor)
+    # Deliver as DataFrame by calling main `traces!()` function.
+    return traces!(model; funs=funs, nsteps=nsteps)
+end
+
+const Scenarios = NamedTuple
+using DimensionalData
+
 function initialise( context::Context # Constants (settings and parameters).
-                   , scenarios::Vector{Scenario} # Variable ranges.
+                   , scenarios::Scenarios # Variable ranges.
                    , seed = nothing
                    )
     # If no seed provided, get the pseudo-randomness from device.
@@ -72,8 +80,8 @@ function initialise( context::Context # Constants (settings and parameters).
                  , 10000.0                                # For $.
                  )
     space = ContinuousSpace(dimensions, spacing=1.0, periodic=false)
-    # Set up the model(s) --- one model for each scenario.
-    models = AgentBasedModel[]
+    # Set up the model(s) hypercube --- each variable range a named axis.
+    models = DimArray(Array{StandardABM, 2}(undef, (2, 2)), scenarios)
     for i in 1:length(scenarios)
         # Any shared params in `context` and `scenario` uses the _latter_.
         properties = merge(context, scenarios[i])
@@ -211,12 +219,13 @@ function clients(model::AgentBasedModel)
 end
 
 function clienteles(model::AgentBasedModel)
-    return model.clienteles
+    agents = model |> allagents |> collect |> values
+    return [ agent for agent in agents if typeof(agent) == Clientele ]
 end
 
 function clienteles(model::AgentBasedModel; tier=Nothing)
     # Should be overridden and implemented in application specific modules.
-    return model.clienteles
+    return clienteles(model)
 end
 
 function clientele(manager::Manager, model::AgentBasedModel)
