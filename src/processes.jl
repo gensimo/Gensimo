@@ -1,6 +1,11 @@
 using Agents
 using Dates, Random, Distributions, StatsBase, DataFrames
 
+const Scenarios = NamedTuple
+using DimensionalData
+using DimensionalData.Dimensions: label
+
+
 function simulate!(conductor::Conductor)
     model = initialise(conductor)
     step!( model
@@ -65,8 +70,18 @@ function traces!(conductor::Conductor; funs, nsteps=nothing)
     return traces!(model; funs=funs, nsteps=nsteps)
 end
 
-const Scenarios = NamedTuple
-using DimensionalData
+function traces!(models::DimArray{AgentBasedModel}; funs, nsteps=nothing)
+    # Iterate prudently over the entries in the hypercube.
+    for vals in Iterators.product(dims(models)...)
+        dimlabels = Symbol.(DimensionalData.Dimensions.label.(dims(models)))
+        scenario = NamedTuple{dimlabels}(vals)
+        println(scenario)
+        # Dict{Symbol, Any} to characterise the scenario of the hypercube entry.
+        coordinates = NamedTuple{keys(scenario)}(At.(values(scenario)))
+        models[coordinates...] |> println
+    end
+    println("RWARK!!!")
+end
 
 function initialise( context::Context # Constants (settings and parameters).
                    , scenarios::Scenarios # Variable ranges.
@@ -81,10 +96,14 @@ function initialise( context::Context # Constants (settings and parameters).
                  )
     space = ContinuousSpace(dimensions, spacing=1.0, periodic=false)
     # Set up the model(s) hypercube --- each variable range a named axis.
-    models = DimArray(Array{StandardABM, 2}(undef, (2, 2)), scenarios)
-    for i in 1:length(scenarios)
+    A = Array{ABM, length(scenarios)}(undef, length.(values(scenarios)))
+    models = DimArray(A, scenarios)
+    # Iterate prudently over the entries in the hypercube.
+    for vals in Iterators.product(values(scenarios)...)
+        # Dict{Symbol, Any} to characterise the scenario of the hypercube entry.
+        scenario = Dict(keys(scenarios) .=> vals)
         # Any shared params in `context` and `scenario` uses the _latter_.
-        properties = merge(context, scenarios[i])
+        properties = merge(context, scenario)
         # Prepare an `AgentBasedModel` object.
         model = StandardABM( Union{ Client
                                   , Clientele
@@ -162,8 +181,9 @@ function initialise( context::Context # Constants (settings and parameters).
                       ; vel = (0.0, 0.0)
                       , make_provider_template(menu, type=key)... )
         end
-        # Add the model to the list.
-        push!(models, model)
+        # Push the model into the hypercube at the right spot.
+        coordinates = NamedTuple{Tuple(keys(scenario))}(At.(values(scenario)))
+        models[coordinates...] = model
     end
     # Deliver.
     return models
