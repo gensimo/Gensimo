@@ -71,16 +71,33 @@ function traces!(conductor::Conductor; funs, nsteps=nothing)
 end
 
 function traces!(models::DimArray{AgentBasedModel}; funs, nsteps=nothing)
+    # Labels of the axes.
+    dimlabels = Symbol.(DimensionalData.Dimensions.label.(dims(models)))
+    # Create an axis for the dates.
+    dates = Dim{:date}(models[1].epoch:Day(1):models[1].eschaton |> collect)
+    # Create an axis for the output variables (i.e. the `funs`).
+    outvars = Dim{:outvar}(Symbol.(funs))
+    # Prepare an output hypercube.
+    hcube = zeros(dates, outvars, dims(models)...)
     # Iterate prudently over the entries in the hypercube.
     for vals in Iterators.product(dims(models)...)
-        dimlabels = Symbol.(DimensionalData.Dimensions.label.(dims(models)))
-        scenario = NamedTuple{dimlabels}(vals)
-        println(scenario)
-        # Dict{Symbol, Any} to characterise the scenario of the hypercube entry.
-        coordinates = NamedTuple{keys(scenario)}(At.(values(scenario)))
-        models[coordinates...] |> println
+        # Make a `Selector` to look up the right model.
+        coordinates = NamedTuple{dimlabels}(At.(vals))
+        # Get the model.
+        model = models[coordinates...]
+        # Run the model.
+        df = traces!(model; funs=funs, nsteps=nsteps)
+        # Add to the hypercube (without dates, they are already in the axis).
+        hcube[:, :, coordinates...] .= df[:, 2:end]
     end
-    println("RWARK!!!")
+    # Deliver.
+    return hcube
+end
+
+function cubeaxes(cube::DimArray)
+    axiskeys = Symbol.(DimensionalData.Dimensions.label.(dims(cube)))
+    axes = [ collect(axis) for axis in val.(dims(hcube)) ]
+    return Dict(axiskeys .=> axes)
 end
 
 function initialise( context::Context # Constants (settings and parameters).
