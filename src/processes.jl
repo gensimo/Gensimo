@@ -141,7 +141,7 @@ function initialise( context::Context # Constants (settings and parameters).
     # Iterate prudently over the entries in the hypercube.
     for vals in Iterators.product(values(scenarios)...)
         # Dict{Symbol, Any} to characterise the scenario of the hypercube entry.
-        scenario = Dict(keys(scenarios) .=> vals)
+        scenario = OrderedDict(keys(scenarios) .=> vals)
         # Any shared params in `context` and `scenario` uses the _latter_.
         properties = merge(context, scenario)
         # Prepare an `AgentBasedModel` object.
@@ -231,7 +231,7 @@ end
 
 function initialise( conductor::Conductor
                    , seed = nothing )
-# If no seed provided, get the pseudo-randomness from device.
+    # If no seed provided, get the pseudo-randomness from device.
     isnothing(seed) ? seed = rand(RandomDevice(), 0:2^16) : seed
     rng = Xoshiro(seed)
     # Create a 'continuous' space.
