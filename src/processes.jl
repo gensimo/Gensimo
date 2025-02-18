@@ -4,6 +4,8 @@ using Dates, Random, Distributions, StatsBase, DataFrames
 const Scenarios = NamedTuple
 using DimensionalData
 using DimensionalData.Dimensions: label
+using CSV
+using HDF5
 
 
 function simulate!(conductor::Conductor)
@@ -96,8 +98,29 @@ end
 
 function cubeaxes(cube::DimArray)
     axiskeys = Symbol.(DimensionalData.Dimensions.label.(dims(cube)))
-    axes = [ collect(axis) for axis in val.(dims(hcube)) ]
-    return Dict(axiskeys .=> axes)
+    axes = [ collect(axis) for axis in val.(dims(cube)) ]
+    return OrderedDict(axiskeys .=> axes)
+end
+
+function writecube(fname::String, cube::DimArray; numpy=true)
+    # Extract the array from the DimArray.
+    cube = cube |> parent
+    # Reverse order of axes for NumPy compatibility if requested.
+    if numpy
+        cube = permutedims(cube, collect(ndims(cube):-1:1))
+    end
+    # Write the HDF5 file.
+    h5write(fname, "hcube", cube)
+end
+
+function writeaxes(fname::String, cube::DimArray)
+    # First write a CSV with the axis names.
+    CSV.write( string(fname, "-axes", ".csv")
+             , Dict(:axis=>collect(keys(cubeaxes(cube)))))
+    # Then write CSVs for each of the axes.
+    for (axis, entry) in cubeaxes(cube)
+        CSV.write(string(fname, "-", axis, ".csv"), Dict(axis => entry))
+    end
 end
 
 function initialise( context::Context # Constants (settings and parameters).
