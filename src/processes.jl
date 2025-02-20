@@ -158,10 +158,12 @@ function initialise( context::Context # Constants (settings and parameters).
         # Add clients.
         for i in 1:properties[:nclients]
             # Random day zero in the first three years since simulation start.
-            day0 = rand( rng
-                        , properties[:epoch]:( properties[:epoch]
-                                             + Year(3)
-                                             - Day(1) ) )
+            # day0 = rand( rng
+                        # , properties[:epoch]:( properties[:epoch]
+                                             # + Year(3)
+                                             # - Day(1) ) )
+            # Random day zero.
+            day0 = rand(rng, properties[:epoch]:properties[:eschaton])
             state0 = State( [ rand(11)..., .75 + (.5-rand())/2 ] )
             add_agent!( (0.0, 0.0) # Position.
                       , Client # Agent type.
