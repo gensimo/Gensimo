@@ -71,7 +71,8 @@ export initialise, simulate!,
        workload, ntasks, nopen, provides,
        next_request, next_requests,
        portfolios, pools,
-       type, qoccupation, trace!, traces!, cubeaxes, writecube, writeaxes
+       type, qoccupation, trace!, traces!, cubeaxes, writecube, writeaxes,
+       scenarioslice
 
 # Include and export essentials from display.jl.
 include("display.jl")

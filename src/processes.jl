@@ -102,6 +102,22 @@ function cubeaxes(cube::DimArray)
     return OrderedDict(axiskeys .=> axes)
 end
 
+function scenarioslice(cube::DimArray, scenario::Dict)
+    # Axis labels --- in correct order --- excluding dates and outvars.
+    ks = Tuple(keys(cubeaxes(hcube)))[3:end]
+    # Construct coordinates for hypercube the _hard_ way.
+    coordinates = NamedTuple{ks}(At.(scenario[k] for k in ks))
+    # Retrieve the desired slice of hypercube.
+    slice = cube[:, :, coordinates...]
+    # Turn this into a DataFrame.
+    datedict = OrderedDict(:date => collect(dims(slice)[1]))
+    outvardict = OrderedDict( key => collect(slice[:, At(key)])
+                              for key in dims(slice)[2] )
+    d = merge(datedict, outvardict)
+    # Deliver.
+    return DataFrame(d)
+end
+
 function writecube(fname::String, cube::DimArray; numpy=true)
     # Extract the array from the DimArray.
     cube = cube |> parent
