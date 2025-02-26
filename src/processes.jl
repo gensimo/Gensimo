@@ -104,7 +104,7 @@ end
 
 function scenarioslice(cube::DimArray, scenario::Dict)
     # Axis labels --- in correct order --- excluding dates and outvars.
-    ks = Tuple(keys(cubeaxes(hcube)))[3:end]
+    ks = Tuple(keys(cubeaxes(cube)))[3:end]
     # Construct coordinates for hypercube the _hard_ way.
     coordinates = NamedTuple{ks}(At.(scenario[k] for k in ks))
     # Retrieve the desired slice of hypercube.
@@ -139,6 +139,102 @@ function writeaxes(fname::String, cube::DimArray)
     end
 end
 
+function initialise(context::Context, seed=nothing)
+    # If no seed provided, get the pseudo-randomness from device.
+    isnothing(seed) ? seed = rand(RandomDevice(), 0:2^16) : seed
+    rng = Xoshiro(seed)
+    # Create a 'continuous' space.
+    dimensions = ( context |> timeline |> length |> float # For days>dayzero.
+                 , 10000.0                                # For $.
+                 )
+    space = ContinuousSpace(dimensions, spacing=1.0, periodic=false)
+    # Make labelling consistent.
+    properties = context
+    # Prepare an `AgentBasedModel` object.
+    model = StandardABM( Union{ Client
+                                , Clientele
+                                , Manager
+                                , Provider }
+                        , space
+                        ; properties
+                        , warn = false
+                        , agent_step! = step_agent!
+                        , model_step! = step_model!
+                        , rng )
+    # Add clients.
+    for i in 1:properties[:nclients]
+        # Random day zero in the first three years since simulation start.
+        # day0 = rand( rng
+                    # , properties[:epoch]:( properties[:epoch]
+                                            # + Year(3)
+                                            # - Day(1) ) )
+        # Random day zero.
+        day0 = rand(rng, properties[:epoch]:(properties[:epoch]+Year(1)))
+                    #properties[:eschaton])
+        state0 = State( [ rand(11)..., .75 + (.5-rand())/2 ] )
+        add_agent!( (0.0, 0.0) # Position.
+                    , Client # Agent type.
+                    , model # To which it should be added.
+                    ; vel = (0.0, 0.0)
+                    , personalia = Personalia() # Random personalia.
+                    , history = [ ( day0, state0) ]
+                    , claim = Claim() # Empty claim.
+                    )
+    end
+    # Add clienteles --- portfolios.
+    for i in 1:properties[:nportfolios]
+        # Add the `Clientele` agent.
+        portfolio = add_agent!( (0.0, 0.0) # Position.
+                                , Clientele # Agent type.
+                                , model # To which it should be added.
+                                ; vel = (0.0, 0.0)
+                                , cap = rand(rng, 48:52)
+                                )
+        # A portfolio is a clientele with just one manager.
+        manager = add_agent!( (0.0, 0.0) # Position.
+                            , Manager # Agent type.
+                            , model # To which it should be added.
+                            ; vel = (0.0, 0.0)
+                            , capacity = rand(rng, 48:52) # Task capacity.
+                            )
+        # Add the manager to the portfolio also.
+        managers!(portfolio, [manager])
+    end
+    # Add clienteles --- pools.
+    for i in 1:length(properties[:nmanagersperpool])
+        # Add the `Clientele` agent.
+        pool = add_agent!( (0.0, 0.0) # Position.
+                            , Clientele # Agent type.
+                            , model
+                            ; vel = (0.0, 0.0)
+                            ) # To which it should be added.
+        # Each pool has at least two managers.
+        nmanagers = properties[:nmanagersperpool][i]
+        managers = [ add_agent!( (0.0, 0.0) # Position.
+                                , Manager # Agent type.
+                                , model # To which it should be added.
+                                ; vel = (0.0, 0.0)
+                                , capacity = rand(rng, 28:32) # Task capacity
+                                )
+                        for i in 1:nmanagers ]
+        # Add the managers to the pool also.
+        managers!(pool, managers)
+    end
+    # Add providers.
+    providers = Provider[]
+    menu = Dict( s => context[:costs][s]
+                    for s in context[:alliedhealthservices] )
+    for (key, val) in properties[:providerpopulation]
+        add_agent!( (0.0, 0.0) # Position.
+                    , Provider # Agent type.
+                    , model # To which it should be added.
+                    ; vel = (0.0, 0.0)
+                    , make_provider_template(menu, type=key)... )
+    end
+    # Deliver.
+    return model
+end
+
 function initialise( context::Context # Constants (settings and parameters).
                    , scenarios::Scenarios # Variable ranges.
                    , seed = nothing
@@ -160,88 +256,10 @@ function initialise( context::Context # Constants (settings and parameters).
         scenario = OrderedDict(keys(scenarios) .=> vals)
         # Any shared params in `context` and `scenario` uses the _latter_.
         properties = merge(context, scenario)
-        # Prepare an `AgentBasedModel` object.
-        model = StandardABM( Union{ Client
-                                  , Clientele
-                                  , Manager
-                                  , Provider }
-                            , space
-                            ; properties
-                            , warn = false
-                            , agent_step! = step_agent!
-                            , model_step! = step_model!
-                            , rng )
-        # Add clients.
-        for i in 1:properties[:nclients]
-            # Random day zero in the first three years since simulation start.
-            # day0 = rand( rng
-                        # , properties[:epoch]:( properties[:epoch]
-                                             # + Year(3)
-                                             # - Day(1) ) )
-            # Random day zero.
-            day0 = rand(rng, properties[:epoch]:properties[:eschaton])
-            state0 = State( [ rand(11)..., .75 + (.5-rand())/2 ] )
-            add_agent!( (0.0, 0.0) # Position.
-                      , Client # Agent type.
-                      , model # To which it should be added.
-                      ; vel = (0.0, 0.0)
-                      , personalia = Personalia() # Random personalia.
-                      , history = [ ( day0, state0) ]
-                      , claim = Claim() # Empty claim.
-                      )
-        end
-        # Add clienteles --- portfolios.
-        for i in 1:properties[:nportfolios]
-            # Add the `Clientele` agent.
-            portfolio = add_agent!( (0.0, 0.0) # Position.
-                                  , Clientele # Agent type.
-                                  , model # To which it should be added.
-                                  ; vel = (0.0, 0.0)
-                                  )
-            # A portfolio is a clientele with just one manager.
-            manager = add_agent!( (0.0, 0.0) # Position.
-                                , Manager # Agent type.
-                                , model # To which it should be added.
-                                ; vel = (0.0, 0.0)
-                                , capacity = rand(rng, 28:32) # Task capacity.
-                                )
-            # Add the manager to the portfolio also.
-            managers!(portfolio, [manager])
-        end
-        # Add clienteles --- pools.
-        for i in 1:length(properties[:nmanagersperpool])
-            # Add the `Clientele` agent.
-            pool = add_agent!( (0.0, 0.0) # Position.
-                             , Clientele # Agent type.
-                             , model
-                             ; vel = (0.0, 0.0)
-                             ) # To which it should be added.
-            # Each pool has at least two managers.
-            nmanagers = properties[:nmanagersperpool][i]
-            managers = [ add_agent!( (0.0, 0.0) # Position.
-                                   , Manager # Agent type.
-                                   , model # To which it should be added.
-                                   ; vel = (0.0, 0.0)
-                                   , capacity = rand(rng, 28:32) # Task capacity
-                                   )
-                         for i in 1:nmanagers ]
-            # Add the managers to the pool also.
-            managers!(pool, managers)
-        end
-        # Add providers.
-        providers = Provider[]
-        menu = Dict( s => context[:costs][s]
-                     for s in context[:alliedhealthservices] )
-        for (key, val) in properties[:providerpopulation]
-            add_agent!( (0.0, 0.0) # Position.
-                      , Provider # Agent type.
-                      , model # To which it should be added.
-                      ; vel = (0.0, 0.0)
-                      , make_provider_template(menu, type=key)... )
-        end
         # Push the model into the hypercube at the right spot.
         coordinates = NamedTuple{Tuple(keys(scenario))}(At.(values(scenario)))
-        models[coordinates...] = model
+        # Defer model creation to simpler `initialise()` function.
+        models[coordinates...] = initialise(properties, seed)
     end
     # Deliver.
     return models
@@ -600,6 +618,7 @@ function allocate!(clientele::Clientele, client::Client)
 end
 
 function allocate!(client::Client, model::AgentBasedModel)
+    println("*** Using GENSIMO allocation function.")
     if model.ntiers == 1
         # If there is just one tier, allocate to arbitrary available clientele.
         availablecs = filter(!isatcap, clienteles(model))
@@ -623,6 +642,12 @@ function allocate!(client::Client, model::AgentBasedModel)
     end
     # Deliver the changed clientele.
     return clientele
+end
+
+function allocated(model::AgentBasedModel)
+    n = nclients(model)
+    nallocated = sum(isallocated.(clients(model)))
+    return nallocated/n
 end
 
 function step_client!(client::Client, model::AgentBasedModel)
@@ -743,7 +768,7 @@ function step_client!(client::Client, model::AgentBasedModel)
             work = ndays.value * 8.0 / 30 # 30 is mean capacity of managers.
             # Update the request with the labour and close it.
             labour!(r, work)
-            status!(r, :closed)
+            status!(r, :approved)
             # Set the term (closing) date of the event to today.
             term!(e, today)
         end

@@ -133,6 +133,7 @@ labour!(request::Request, l) = request.labour = l
 status(request::Request) = request.status
 status!(request::Request, s::Symbol) = request.status = s
 approved(request::Request) = status(request) == :approved
+closed(request::Request) = status(request) == :closed
 denied(request::Request) = status(request) == :denied
 # cost(request::Request) = approved(request) ? request.cost : 0.0
 cost(request::Request) = request.cost
