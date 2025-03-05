@@ -38,7 +38,7 @@ export name, heaviside, n
 export activeplans, satisfaction, duration
 
 # Include and export essentials from insurers.jl.
-include("insurers.jl")
+include("clienteles.jl")
 export Clientele, Manager, ClientAssistant, ClaimsManager,
        capacity, allocations, nallocations, nfree, pfree, anyfree, freemanagers,
        Task, tasks, close!, allocate!, requestedon, allocatedon,
@@ -50,32 +50,57 @@ export Provider, template, sfactor, rfactor, services, asks, provides,
        capacity, capacity!,
        make_provider_template
 
-# Include and export essentials from conductors.jl.
-include("conductors.jl")
-export Conductor, clients, nclients, context, epoch, eschaton, timeline,
-       nactive, nonscheme, statistics, workload, workload_average, cost,
-       cost_average, request_cost,
-       client, event,
-       clienteles, nclienteles, nmanagers,
-       providers, provides, agents,
-       nproviders, nagents
-export Context, distros, requests, segments, states, probabilities
+# # Include and export essentials from conductors.jl.
+# include("conductors.jl")
+# export Conductor, clients, nclients, context, epoch, eschaton, timeline,
+       # nactive, nonscheme, statistics, workload, workload_average, cost,
+       # cost_average, request_cost,
+       # client, event,
+       # clienteles, nclienteles, nmanagers,
+       # providers, provides, agents,
+       # nproviders, nagents
+# export Context, distros, requests, segments, states, probabilities
 
-# Include and export essentials from processes.jl.
-include("processes.jl")
-export initialise, simulate!,
-       clienteles, clientele,
-       client_step!, agent_step!, model_step!,
-       stap, walk, nrequests, requests,
-       nevents, cost, cost_cumulative, cost_meancum, nactive, nclients,
-       workload, ntasks, nopen, provides,
-       next_request, next_requests,
-       portfolios, pools,
-       type, qoccupation, trace!, traces!, cubeaxes, writecube, writeaxes,
-       scenarioslice, allocated
+# Include and export essentials from initialisation.jl.
+include("initialisation.jl")
+export initialise
+export Context, timeline
+export Scenario, Scenarios, rand, listify
+export step_agent!, step_model!,
+       step_client!, step_manager!, step_clientele!, step_provider!
+export clients, clienteles, clientele, providers, managers,
+       stap, walk, requests, nexpected
+       provides, portfolios, pools,
+       type, allocate!,  date, listify
+       position, rand, requests, segment!, tasks, tier, cost
+
+# Include and export essentials from simulation.jl.
+include("simulation.jl")
+export traces!
+export cubeaxes, scenarioslice, writecube # Hypercube tools.
+
+# Include and export essentials from tracers.jl.
+include("tracers.jl")
+export tracers,
+       allocated, cost, cost_cumulative, cost_mediancum, nactive, nclients,
+       nevents, nopenclients, nopenrequests, ntasks, nwaiting, qoccupation,
+       satisfaction, workload
+
+# # Include and export essentials from processes.jl.
+# include("processes.jl")
+# export initialise, simulate!,
+       # clienteles, clientele,
+       # client_step!, agent_step!, model_step!,
+       # stap, walk, nrequests, requests,
+       # nevents, cost, cost_cumulative, cost_meancum, nactive, nclients,
+       # workload, ntasks, nopen, provides,
+       # next_request, next_requests,
+       # portfolios, pools,
+       # type, qoccupation, trace!, traces!, cubeaxes, writecube, writeaxes,
+       # scenarioslice, allocated
 
 # Include and export essentials from display.jl.
-include("display.jl")
+include("visualisation.jl")
 export baseplot, gplot, datesplot,
        costseriesplot, costseriesplot_ensemble, costseriesplot_tiled,
        datesplots, clientplot, conductorplot, nactiveplot,

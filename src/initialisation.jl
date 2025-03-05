@@ -1,143 +1,21 @@
 using Agents
-using Dates, Random, Distributions, StatsBase, DataFrames
-
-const Scenarios = NamedTuple
-#const Scenarios = Dict{Symbol, Union{Vector, Dict}}
+using Dates
+using DataStructures, Random, StatsBase
 using DimensionalData
 using DimensionalData.Dimensions: label
-using CSV
-using HDF5
 
-
-function simulate!(conductor::Conductor)
-    model = initialise(conductor)
-    step!( model
-         , length(model.epoch:Day(1):model.eschaton) - 1 ) # Up to eschaton.
-end
-
-function trace!(conductor::Conductor; fun, nsteps=nothing, dates=false)
-    # Make a model.
-    model = initialise(conductor)
-    # Prepare an array for the output by filling it with zeroeth-step element.
-    output = [fun(model)]
-    # Likewise for the dates array.
-    days = [date(model)]
-    # Infer nsteps if necessary.
-    if isnothing(nsteps)
-        nsteps = length(model.epoch:Day(1):model.eschaton) - 1 # Up to eschaton.
-    end
-    # Step through the simulation, filling the arrays.
-    for t ∈ 1:nsteps
-        step!(model)
-        push!(days, date(model))
-        push!(output, fun(model))
-    end
-    # Deliver the time series as [outputs] or as ([dates], [outputs]).
-    if dates
-        return days, outputs
-    else
-        return output
-    end
-end
-
-function traces!(model::AgentBasedModel; funs, nsteps=nothing)
-    # Prepare arrays for output by filling them with zeroeth-step element.
-    outputs = [ [Float64(funs[i](model))] for i in 1:length(funs) ]
-    # Likewise for the dates array.
-    days = [date(model)]
-    # Infer nsteps if necessary.
-    if isnothing(nsteps)
-        nsteps = length(model.epoch:Day(1):model.eschaton) - 1 # Up to eschaton.
-    end
-    # Step through the simulation, filling the arrays.
-    for t ∈ 1:nsteps
-        # One step at a time.
-        step!(model)
-        # Current model date needs to be written to array only once.
-        push!(days, date(model))
-        # Obtain the output for each function successively.
-        for i in 1:length(funs)
-            push!(outputs[i], funs[i](model))
-        end
-    end
-    xs = [ :date=>days
-         , [Symbol(funs[i])=>outputs[i] for i in 1:length(funs)]... ]
-    # Deliver as DataFrame.
-    return DataFrame(xs)
-end
-
-function traces!(conductor::Conductor; funs, nsteps=nothing)
-    # Make a model.
-    model = initialise(conductor)
-    # Deliver as DataFrame by calling main `traces!()` function.
-    return traces!(model; funs=funs, nsteps=nsteps)
-end
-
-function traces!(models::DimArray{AgentBasedModel}; funs, nsteps=nothing)
-    # Labels of the axes.
-    dimlabels = Symbol.(DimensionalData.Dimensions.label.(dims(models)))
-    # Create an axis for the dates.
-    dates = Dim{:date}(models[1].epoch:Day(1):models[1].eschaton |> collect)
-    # Create an axis for the output variables (i.e. the `funs`).
-    outvars = Dim{:outvar}(Symbol.(funs))
-    # Prepare an output hypercube.
-    hcube = zeros(dates, outvars, dims(models)...)
-    # Iterate prudently over the entries in the hypercube.
-    for vals in Iterators.product(dims(models)...)
-        # Make a `Selector` to look up the right model.
-        coordinates = NamedTuple{dimlabels}(At.(vals))
-        # Get the model.
-        model = models[coordinates...]
-        # Run the model.
-        df = traces!(model; funs=funs, nsteps=nsteps)
-        # Add to the hypercube (without dates, they are already in the axis).
-        hcube[:, :, coordinates...] .= df[:, 2:end]
-    end
-    # Deliver.
-    return hcube
-end
-
-function cubeaxes(cube::DimArray)
-    axiskeys = Symbol.(DimensionalData.Dimensions.label.(dims(cube)))
-    axes = [ collect(axis) for axis in val.(dims(cube)) ]
-    return OrderedDict(axiskeys .=> axes)
-end
-
-function scenarioslice(cube::DimArray, scenario::Dict)
-    # Axis labels --- in correct order --- excluding dates and outvars.
-    ks = Tuple(keys(cubeaxes(cube)))[3:end]
-    # Construct coordinates for hypercube the _hard_ way.
-    coordinates = NamedTuple{ks}(At.(scenario[k] for k in ks))
-    # Retrieve the desired slice of hypercube.
-    slice = cube[:, :, coordinates...]
-    # Turn this into a DataFrame.
-    datedict = OrderedDict(:date => collect(dims(slice)[1]))
-    outvardict = OrderedDict( key => collect(slice[:, At(key)])
-                              for key in dims(slice)[2] )
-    d = merge(datedict, outvardict)
-    # Deliver.
-    return DataFrame(d)
-end
-
-function writecube(fname::String, cube::DimArray; numpy=true)
-    # Extract the array from the DimArray.
-    cube = cube |> parent
-    # Reverse order of axes for NumPy compatibility if requested.
-    if numpy
-        cube = permutedims(cube, collect(ndims(cube):-1:1))
-    end
-    # Write the HDF5 file.
-    h5write(fname, "hcube", cube)
-end
-
-function writeaxes(fname::String, cube::DimArray)
-    # First write a CSV with the axis names.
-    CSV.write( string(fname, "-axes", ".csv")
-             , Dict(:axis=>collect(keys(cubeaxes(cube)))))
-    # Then write CSVs for each of the axes.
-    for (axis, entry) in cubeaxes(cube)
-        CSV.write(string(fname, "-", axis, ".csv"), Dict(axis => entry))
-    end
+# Some useful pseudo-types.
+const Context = Dict{Symbol, Any} # Model parameter or setting key => value.
+const Scenario = OrderedDict{Symbol, Any} # Like `Context`.
+const Scenarios = OrderedDict{ Symbol
+                             , Union{Vector, Dict}} # Par. => (labelled) range.
+# Getters and other utility functions.
+timeline(context::Context) = context[:epoch]:Day(1):context[:eschaton]
+Base.rand(scenarios::Scenarios) = Dict( key => rand(scenarios[key])
+                                        for key ∈ keys(scenarios) )
+function listify(scenarios::Scenarios)
+    return [ Scenario(keys(scenarios) .=> vals)
+             for vals in [Iterators.product(values(scenarios)...)...] ]
 end
 
 function initialise(context::Context, seed=nothing)
@@ -275,12 +153,12 @@ function initialise( context::Context # Constants (settings and parameters).
                  )
     space = ContinuousSpace(dimensions, spacing=1.0, periodic=false)
     # Set up the model(s) hypercube --- each variable range a named axis.
-    A = Array{ABM, length(scenarios)}(undef, length.(values(scenarios)))
-    models = DimArray(A, scenarios)
+    A = Array{ABM, length(scenarios)}(undef, Tuple(length.(values(scenarios))))
+    models = DimArray(A, NamedTuple{Tuple(keys(scenarios))}(values(scenarios)))
     # Iterate prudently over the entries in the hypercube.
-    for vals in Iterators.product(values(scenarios)...)
+    for scenario in listify(scenarios) # Iterators.product(values(scenarios)...)
         # Dict{Symbol, Any} to characterise the scenario of the hypercube entry.
-        scenario = OrderedDict(keys(scenarios) .=> vals)
+        # scenario = OrderedDict(keys(scenarios) .=> vals)
         # Any shared params in `context` and `scenario` uses the _latter_.
         properties = merge(context, scenario)
         # Push the model into the hypercube at the right spot.
@@ -290,46 +168,6 @@ function initialise( context::Context # Constants (settings and parameters).
     end
     # Deliver.
     return models
-end
-
-function initialise( conductor::Conductor
-                   , seed = nothing )
-    # If no seed provided, get the pseudo-randomness from device.
-    isnothing(seed) ? seed = rand(RandomDevice(), 0:2^16) : seed
-    rng = Xoshiro(seed)
-    # Create a 'continuous' space.
-    dimensions = ( conductor |> timeline |> length |> float # For days>dayzero.
-                 , 10000.0                                  # For $.
-                 )
-    space = ContinuousSpace(dimensions, spacing=1.0, periodic=false)
-    # Set up the model.
-    model = StandardABM( Union{ Client
-                              , Clientele
-                              , Manager
-                              , Provider }
-                       , space
-                       ; properties = conductor
-                       , warn = false
-                       , agent_step! = step_agent!
-                       , model_step! = step_model!
-                       , rng )
-    # Add clients.
-    for client in clients(conductor)
-        add_agent_own_pos!(client, model)
-    end
-    # Set up the insurance organisation.
-    for clientele in clienteles(conductor) # Pools and portfolio environments.
-        add_agent!(clientele, model)
-        for manager in managers(clientele) # And their managers.
-            add_agent!(manager, model)
-        end
-    end
-    # Add providers.
-    for provider in providers(conductor)
-        add_agent!(provider, model)
-    end
-    # Deliver.
-    return model
 end
 
 function date(model::AgentBasedModel)
@@ -361,59 +199,26 @@ function clientele(manager::Manager, model::AgentBasedModel)
     end
 end
 
+function cost(client::Client, model::AgentBasedModel; cumulative=false)
+    datum = date(model) - Day(1)
+    totalcost = 0
+    for event in events(client)
+        if cumulative
+            if date(event) <= datum # Count all events before the datum.
+                totalcost += cost(event)
+            end
+        else
+            if date(event) == datum # Count only events on the datum.
+                totalcost += cost(event)
+            end
+        end
+    end
+    # Deliver.
+    return totalcost
+end
+
 function tasks(manager::Manager, model::AgentBasedModel)
     return allocations(clientele(manager, model))[manager]
-end
-
-function ntasks(clientele::Clientele)
-    # Return number of allocated tasks --- i.e. everything in the queues.
-    return sum([ length(allocations(clientele)[manager])
-                 for manager in managers(clientele) ])
-end
-
-function nopen(clientele::Clientele)
-    # Return number of open requests --- i.e. everything waiting to be queued.
-    if isempty(clients(clientele))
-        return 0
-    else
-        return sum([ length(requests(client; status=:open))
-                     for client in clientele ])
-    end
-end
-
-function nopenrequests(model::AgentBasedModel)
-    # Return number of open requests --- i.e. everything waiting to be queued.
-    return sum([ nopen(clientele) for clientele in clienteles(model) ])
-end
-
-function nwaiting(model::AgentBasedModel)
-    return length([ c for c in clients(model) if iswaiting(c, date(model)) ])
-end
-
-function nopenclients(model::AgentBasedModel)
-    return length([ c for c in clients(model) if isopen(c, date(model)) ])
-end
-
-function qoccupation(model::AgentBasedModel)
-    totalcapacity = sum([capacity(c) for c in clienteles(model)])
-    totalfree = sum([nfree(c; total=true) for c in clienteles(model)])
-    # Deliver fraction of total queue capacity used.
-    return (totalcapacity - totalfree) / totalcapacity
-end
-
-function satisfaction(model::AgentBasedModel)
-    # Return mean satisfaction as a percentage.
-    σs = [ satisfaction( client, date(model)
-                       ; denialmultiplier = model.denialmultiplier
-                       , irksusceptibility = model.irksusceptibility )
-          for client in clients(model)
-          if isopen(client, date(model)) ]
-    # Deliver.
-    if isempty(σs)
-        return 100.0*mean(σ₀.(clients(model)))
-    else
-        return 100.0*mean(σs)
-    end
 end
 
 function portfolios(model::AgentBasedModel)
@@ -427,6 +232,11 @@ end
 function providers(model::AgentBasedModel)
     agents = model |> allagents |> collect |> values
     return [ agent for agent in agents if typeof(agent) == Provider ]
+end
+
+function provides(model::AgentBasedModel, service::String)
+    return [ provider for provider in providers(model)
+                      if provides(provider, service) ]
 end
 
 function managers(model::AgentBasedModel)
@@ -452,94 +262,6 @@ function type(provider::Provider, model::AgentBasedModel)
     end
     # Deliver.
     return ptype
-end
-
-function nevents(model::AgentBasedModel; cumulative=false)
-    clientele = clients(model)
-    datum = date(model) - Day(1)
-    # Count events for each client.
-    eventcount = 0
-    for client in clientele
-        for event in events(client)
-            if cumulative
-                if date(event) <= datum # Count all events before the datum.
-                    eventcount += 1
-                end
-            else
-                if date(event) == datum # Count only events on the datum.
-                    eventcount += 1
-                end
-            end
-        end
-    end
-    # Deliver.
-    return eventcount
-end
-
-function nclients(model::AgentBasedModel)
-    return length(clients(model))
-end
-
-function nactive(model::AgentBasedModel)
-    agents = model |> allagents |> collect |> values
-    clients = [ agent for agent in agents if typeof(agent) == Client ]
-    return sum([ isactive(client, date(model)) for client in clients ])
-end
-
-function provides(model::AgentBasedModel, service::String)
-    return [ provider for provider in providers(model)
-                      if provides(provider, service) ]
-end
-
-function cost(client::Client, model::AgentBasedModel; cumulative=false)
-    datum = date(model) - Day(1)
-    totalcost = 0
-    for event in events(client)
-        if cumulative
-            if date(event) <= datum # Count all events before the datum.
-                totalcost += cost(event)
-            end
-        else
-            if date(event) == datum # Count only events on the datum.
-                totalcost += cost(event)
-            end
-        end
-    end
-    # Deliver.
-    return totalcost
-end
-
-function cost(model::AgentBasedModel; cumulative=false)
-    clientele = clients(model)
-    datum = date(model) - Day(1)
-    # Count events for each client.
-    totalcost = 0
-    for client in clientele
-        totalcost += cost(client, model; cumulative=cumulative)
-    end
-    # Deliver.
-    return totalcost
-end
-
-function cost_cumulative(model::AgentBasedModel)
-    return cost(model; cumulative=true)
-end
-
-function cost_mediancum(model::AgentBasedModel)
-    xs = [ cost(c, model; cumulative=true)
-           for c in clients(model)
-           if !isempty(events(c)) ]
-    if isempty(xs)
-        return 0
-    else
-        return median(xs)
-    end
-end
-
-function workload(model::AgentBasedModel; cumulative=false)
-    datum = date(model) - Day(1) # ABM time gets updated _after_ clients.
-    return sum([ workload(client, datum; cumulative=cumulative)
-                 for client in clients(model) ])
 end
 
 function position(client::Client, model::AgentBasedModel)
@@ -664,12 +386,6 @@ function allocate!(client::Client, model::AgentBasedModel)
     end
     # Deliver the changed clientele.
     return clientele
-end
-
-function allocated(model::AgentBasedModel)
-    n = nclients(model)
-    nallocated = sum(isallocated.(clients(model)))
-    return nallocated/n
 end
 
 function step_client!(client::Client, model::AgentBasedModel)
@@ -941,3 +657,4 @@ function walk( T::Int, x₀=1.0
     # Deliver.
     return xs
 end
+

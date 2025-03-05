@@ -60,6 +60,21 @@ anyfree(clientele::Clientele) = nfree(clientele; total=true) > 0
 freemanagers(clientele::Clientele) = [ m for m in managers(clientele)
                                          if nfree(clientele)[m] > 0 ]
 
+function ntasks(clientele::Clientele)
+    # Return number of allocated tasks --- i.e. everything in the queues.
+    return sum([ length(allocations(clientele)[manager])
+                 for manager in managers(clientele) ])
+end
+
+function nopen(clientele::Clientele)
+    # Return number of open requests --- i.e. everything waiting to be queued.
+    if isempty(clients(clientele))
+        return 0
+    else
+        return sum([ length(requests(client; status=:open))
+                     for client in clientele ])
+    end
+end
 
 @kwdef mutable struct Task
     date::Union{Date, Nothing} = nothing # Date of allocation, not of event.

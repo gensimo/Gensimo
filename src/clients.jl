@@ -1,4 +1,5 @@
 using Agents
+using Random, Distributions, StatsBase
 using DataFrames, StaticArrays, Dates, Printf
 
 function heaviside(x::Real)
@@ -217,7 +218,7 @@ function labour(event::Event)
     typeofchange = event |> change |> typeof
     typeofchange == Request && return event |> change |> labour
     typeofchange == Segment && return 0.0
-    typofchange == Allocation && return 0.0
+    typeofchange == Allocation && return 0.0
     typeofchange <: Integer && return 0.0
     typeofchange == Package && return 0.0
 end
