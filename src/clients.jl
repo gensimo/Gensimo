@@ -1,5 +1,5 @@
 using Agents
-using Random, Distributions, StatsBase
+using Random, Distributions
 using DataFrames, StaticArrays, Dates, Printf
 
 function heaviside(x::Real)

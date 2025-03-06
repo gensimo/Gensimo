@@ -10,6 +10,17 @@ const Scenario = OrderedDict{Symbol, Any} # Like `Context`.
 const Scenarios = OrderedDict{ Symbol
                              , Union{Vector, Dict}} # Par. => (labelled) range.
 # Getters and other utility functions.
+function Base.values(s::Scenarios; unpack=nothing)
+    if unpack == :dict2keys
+        vs = [ s[k] isa AbstractDict ? keys(s[k]) : s[k] for k ∈ keys(s) ]
+    elseif unpack == :dict2vals
+        vs = [ s[k] isa AbstractDict ? values(s[k]) : s[k] for k ∈ keys(s) ]
+    else
+        vs = [ s[k] for k ∈ keys(s) ]
+    end
+    # Deliver.
+    return collect.(vs) # Use `collect` to avoid returning raw keysets.
+end
 timeline(context::Context) = context[:epoch]:Day(1):context[:eschaton]
 Base.rand(scenarios::Scenarios) = Dict( key => rand(scenarios[key])
                                         for key ∈ keys(scenarios) )
@@ -61,10 +72,9 @@ function initialise(context::Context, seed=nothing)
                     )
     end
     # If clienteles given in detail, load them as given.
-    if !isnothing(properties[:capacity])
+    if :capacity in keys(properties)
         # One at a time.
         for (key, clientele) in properties[:capacity]
-            println(clientele)
             # Add the `Clientele` agent.
             c = add_agent!( (0.0, 0.0) # Position.
                           , Clientele # Agent type.
@@ -154,15 +164,18 @@ function initialise( context::Context # Constants (settings and parameters).
     space = ContinuousSpace(dimensions, spacing=1.0, periodic=false)
     # Set up the model(s) hypercube --- each variable range a named axis.
     A = Array{ABM, length(scenarios)}(undef, Tuple(length.(values(scenarios))))
-    models = DimArray(A, NamedTuple{Tuple(keys(scenarios))}(values(scenarios)))
+    t = NamedTuple{Tuple(keys(scenarios))}(values(scenarios; unpack=:dict2keys))
+    models = DimArray(A, t)
     # Iterate prudently over the entries in the hypercube.
     for scenario in listify(scenarios) # Iterators.product(values(scenarios)...)
-        # Dict{Symbol, Any} to characterise the scenario of the hypercube entry.
-        # scenario = OrderedDict(keys(scenarios) .=> vals)
-        # Any shared params in `context` and `scenario` uses the _latter_.
+        # Any shared param in `context` and `scenario` uses the _latter_.
         properties = merge(context, scenario)
+        # Correct for unpacking dictionaries pairs.
+        properties = Dict( v isa Pair ? k=>last(v) : k=>v
+                           for (k, v) in properties )
         # Push the model into the hypercube at the right spot.
-        coordinates = NamedTuple{Tuple(keys(scenario))}(At.(values(scenario)))
+        vs = [ v isa Pair ? first(v) : v for v in collect(values(scenario)) ]
+        coordinates = NamedTuple{Tuple(keys(scenario))}(At.(vs))
         # Defer model creation to simpler `initialise()` function.
         models[coordinates...] = initialise(properties, seed)
     end
