@@ -59,8 +59,8 @@ function initialise(context::Context, seed=nothing)
                                             # + Year(3)
                                             # - Day(1) ) )
         # Random day zero.
-        day0 = rand(rng, properties[:epoch]:(properties[:epoch]+Year(1)))
-                    #properties[:eschaton])
+        day0 = rand(rng, properties[:epoch]:properties[:eschaton])
+        # day0 = rand(rng, properties[:epoch]:(properties[:epoch]+Year(1)))
         state0 = State( [ rand(11)..., .75 + (.5-rand())/2 ] )
         add_agent!( (0.0, 0.0) # Position.
                     , Client # Agent type.
