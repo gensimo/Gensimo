@@ -40,7 +40,8 @@ export activeplans, satisfaction, duration
 # Include and export essentials from insurers.jl.
 include("clienteles.jl")
 export Clientele, Manager, ClientAssistant, ClaimsManager,
-       capacity, allocations, nallocations, nfree, pfree, anyfree, freemanagers,
+       capacity, efficiency,
+       allocations, nallocations, nfree, pfree, anyfree, freemanagers,
        Task, tasks, close!, allocate!, requestedon, allocatedon,
        ispool, isport, isportfolio, managers, cap, isatcap, nclients, nmanagers
 

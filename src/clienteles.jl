@@ -3,9 +3,11 @@ using Agents
 
 @agent struct Manager(ContinuousAgent{2, Float64})
     capacity::Int64 # Number of concurrent tasks this manager can work on.
+    efficiency::Float64 = 1.0 # Multiplier on `days-to-decision`.
 end
 
 capacity(m::Manager) = m.capacity
+efficiency(m::Manager) = m.efficiency
 
 @agent struct Clientele(ContinuousAgent{2, Float64})
     clients::Vector{Client} = Client[]

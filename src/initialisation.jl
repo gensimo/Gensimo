@@ -87,8 +87,11 @@ function initialise(context::Context, seed=nothing)
                                     , Manager # Agent type.
                                     , model # To which it should be added.
                                     ; vel = (0.0, 0.0)
-                                    , capacity = manager[:capacity]
+                                    , NamedTuple(manager)...
                                     )
+                                    # , capacity = manager[:capacity]
+                                    # , efficiency = manager[:efficiency]
+                                    # )
                          for manager in clientele[:managers] ]
             # Add the manager(s) to the clientele (pool or portfolio) also.
             managers!(c, managers)
@@ -320,11 +323,11 @@ function step_manager!(manager::Manager, model::AgentBasedModel)
     # For each task, check if it is overdue and process it accordingly.
     for t in ts
         # How many days to decision on average for this service request?
-        ndays = Day(round(Int, days[label(request(t))]))
+        ndays = Day(round(Int, efficiency(manager)*days[label(request(t))]))
         # Waiting. Counting from allocation, which is later than request date.
         ndayswaiting = today - allocatedon(t)
         # Compute the labour involved --- TODO: Naive.
-        labour = ndays.value * 8.0 / capacity(manager)
+        labour = ndays.value * 8.0 / (capacity(manager) * efficiency(manager))
         # Wait with processing until ndays --- request takes _at least_ ndays.
         if ndayswaiting >= ndays
             # If _requested_ within grace period, just approve.
