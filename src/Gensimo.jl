@@ -41,7 +41,7 @@ export activeplans, satisfaction, duration
 include("clienteles.jl")
 export Clientele, Manager, ClientAssistant, ClaimsManager,
        capacity, efficiency,
-       allocations, nallocations, nfree, pfree, anyfree, freemanagers,
+       allocations, nallocations, nfree, pfree, anyfree, freemanagers, nactive
        Task, tasks, close!, allocate!, requestedon, allocatedon,
        ispool, isport, isportfolio, managers, cap, isatcap, nclients, nmanagers
 

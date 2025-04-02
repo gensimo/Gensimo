@@ -364,9 +364,9 @@ function step_clientele!(clientele::Clientele, model::AgentBasedModel)
     end
 end
 
-function allocate!(clientele::Clientele, client::Client)
+function allocate!(clientele::Clientele, client::Client, today::Date)
     # Successfull allocation happen if clientele has not reached cap yet.
-    if !isatcap(clientele)
+    if !isatcap(clientele, today)
         # Do the allocating.
         push!(clientele, client)
         # Deliver the changed clientele for further handling.
@@ -391,10 +391,12 @@ function allocate!(client::Client, model::AgentBasedModel)
     end
     # Finally, do the allocation if there is any availability.
     if !isempty(availablecs)
+        # What date is it?
+        today = date(model)
         # Allocate the client to one of the available relevant clienteles.
-        clientele = allocate!(rand(abmrng(model), availablecs), client)
+        clientele = allocate!(rand(abmrng(model), availablecs), client, today)
         # Make an `Allocation` object and `Event`.
-        e = Event(date(model), Allocation(clientele))
+        e = Event(today, Allocation(clientele))
         # Add the event to the client's claim.
         push!(client, e)
     else

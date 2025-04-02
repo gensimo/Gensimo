@@ -65,7 +65,7 @@ function nclients(model::AgentBasedModel)
 end
 
 function nactive(model::AgentBasedModel)
-    agents = model |> allagents |> collect |> values
+    agents = model |> allagents |> collect
     clients = [ agent for agent in agents if typeof(agent) == Client ]
     return sum([ isactive(client, date(model)) for client in clients ])
 end

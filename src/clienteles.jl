@@ -25,11 +25,17 @@ nclients(clientele::Clientele) = clientele |> clients |> length
 managers(clientele::Clientele) = keys(clientele.managers) |> collect
 nmanagers(clientele::Clientele) = clientele |> managers |> length
 cap(clientele::Clientele) = clientele.cap
-isatcap(clientele::Clientele) = nclients(clientele) >= cap(clientele)
 isportfolio(clientele::Clientele) = length(managers(clientele)) == 1
 isport(clientele::Clientele) = isportfolio(clientele)
 ispool(clientele::Clientele) = length(managers(clientele)) > 1
 allocations(clientele::Clientele) = clientele.managers
+
+function nactive(clientele::Clientele, refdate::Date)
+    return sum([ isactive(c, refdate) for c in clients(clientele) ])
+end
+function isatcap(clientele::Clientele, refdate::Date)
+    nactive(clientele, refdate) >= cap(clientele)
+end
 
 function capacity(clientele::Clientele)
     return sum(capacity(m) for m in managers(clientele))
