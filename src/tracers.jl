@@ -97,6 +97,17 @@ function cost_mediancum(model::AgentBasedModel)
     end
 end
 
+function cost_meancum(model::AgentBasedModel)
+    xs = [ cost(c, model; cumulative=true)
+           for c in clients(model)
+           if !isempty(events(c)) ]
+    if isempty(xs)
+        return 0
+    else
+        return mean(xs)
+    end
+end
+
 function workload(model::AgentBasedModel; cumulative=false)
     datum = date(model) - Day(1) # ABM time gets updated _after_ clients.
     return sum([ workload(client, datum; cumulative=cumulative)
@@ -110,7 +121,7 @@ function allocated(model::AgentBasedModel)
 end
 
 tracers = [ allocated
-          , cost, cost_cumulative, cost_mediancum
+          , cost, cost_cumulative, cost_mediancum, cost_meancum
           , nactive
           , nclients
           , nevents

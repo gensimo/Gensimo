@@ -43,7 +43,8 @@ export Clientele, Manager, ClientAssistant, ClaimsManager,
        capacity, efficiency,
        allocations, nallocations, nfree, pfree, anyfree, freemanagers, nactive
        Task, tasks, close!, allocate!, requestedon, allocatedon,
-       ispool, isport, isportfolio, managers, cap, isatcap, nclients, nmanagers
+       ispool, isport, isportfolio, managers, cap, isatcap, nclients, nmanagers,
+       cap!
 
 # Include and export essentials from providers.jl.
 include("providers.jl")
@@ -85,7 +86,7 @@ include("tracers.jl")
 export tracers,
        allocated, cost, cost_cumulative, cost_mediancum, nactive, nclients,
        nevents, nopenclients, nopenrequests, ntasks, nwaiting, qoccupation,
-       satisfaction, workload
+       satisfaction, workload, cost_meancum
 
 # # Include and export essentials from processes.jl.
 # include("processes.jl")

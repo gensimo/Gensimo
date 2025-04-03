@@ -42,9 +42,9 @@ function initialise(context::Context, seed=nothing)
     properties = context
     # Prepare an `AgentBasedModel` object.
     model = StandardABM( Union{ Client
-                                , Clientele
-                                , Manager
-                                , Provider }
+                              , Clientele
+                              , Manager
+                              , Provider }
                         , space
                         ; properties
                         , warn = false
@@ -136,6 +136,17 @@ function initialise(context::Context, seed=nothing)
                             for i in 1:nmanagers ]
             # Add the managers to the pool also.
             managers!(pool, managers)
+        end
+    end
+    # Apply capacity multipliers, if any.
+    if :poolcapmult in keys(properties)
+        for pool in pools(model)
+            cap!(pool, round(Integer, properties[:poolcapmult]*cap(pool)))
+        end
+    end
+    if :portcapmult in keys(properties)
+        for port in portfolios(model)
+            cap!(port, round(Integer, properties[:portcapmult]*cap(port)))
         end
     end
     # Add providers.
