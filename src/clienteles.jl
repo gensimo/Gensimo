@@ -7,7 +7,9 @@ using Agents
 end
 
 capacity(m::Manager) = m.capacity
+capacity!(m::Manager, c::Integer) = m.capacity = c
 efficiency(m::Manager) = m.efficiency
+efficiency!(m::Manager, e::Real) = m.efficiency = e
 
 @agent struct Clientele(ContinuousAgent{2, Float64})
     clients::Vector{Client} = Client[]

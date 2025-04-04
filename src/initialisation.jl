@@ -61,6 +61,7 @@ function initialise(context::Context, seed=nothing)
         # Random day zero.
         day0 = rand(rng, properties[:epoch]:properties[:eschaton])
         # day0 = rand(rng, properties[:epoch]:(properties[:epoch]+Year(1)))
+        # TODO: Check random health state below.
         state0 = State( [ rand(11)..., .75 + (.5-rand())/2 ] )
         add_agent!( (0.0, 0.0) # Position.
                     , Client # Agent type.
@@ -147,6 +148,33 @@ function initialise(context::Context, seed=nothing)
     if :portcapmult in keys(properties)
         for port in portfolios(model)
             cap!(port, round(Integer, properties[:portcapmult]*cap(port)))
+        end
+    end
+    if :capmult in keys(properties)
+        for c in clienteles(model)
+            cap!(c, round(Integer, properties[:capmult]*cap(c)))
+        end
+    end
+    # Apply efficiency multipliers, if any.
+    if :pooleffmult in keys(properties)
+        for pool in pools(model)
+            for man in managers(pool)
+                efficiency!(man, properties[:pooleffmult]*efficiency(man))
+            end
+        end
+    end
+    if :porteffmult in keys(properties)
+        for port in portfolios(model)
+            for man in managers(port)
+                efficiency!(man, properties[:porteffmult]*efficiency(man))
+            end
+        end
+    end
+    if :effmult in keys(properties)
+        for c in clienteles(model)
+            for man in managers(c)
+                efficiency!(man, properties[:effmult]*efficiency(man))
+            end
         end
     end
     # Add providers.
