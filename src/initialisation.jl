@@ -61,8 +61,12 @@ function initialise(context::Context, seed=nothing)
         # Random day zero.
         day0 = rand(rng, properties[:epoch]:properties[:eschaton])
         # day0 = rand(rng, properties[:epoch]:(properties[:epoch]+Year(1)))
-        # TODO: Check random health state below.
-        state0 = State( [ rand(11)..., .75 + (.5-rand())/2 ] )
+        # Below state0 has random health but biased (.75) satisfaction.
+        # state0 = State( [ rand(rng, 11)..., .75 + (.5-rand(rng))/2 ] )
+        # Below state0 has 1/3 < health < 2/3 and around .75 satisfaction.
+        state0 = State( [ ((1 .+ rand(rng, 2)) / 3)...
+                        , rand(rng, 9)...
+                        , .75 + (.5-rand(rng))/2 ] )
         add_agent!( (0.0, 0.0) # Position.
                     , Client # Agent type.
                     , model # To which it should be added.
