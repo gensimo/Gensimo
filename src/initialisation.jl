@@ -8,7 +8,7 @@ using DimensionalData.Dimensions: label
 const Context = Dict{Symbol, Any} # Model parameter or setting key => value.
 const Scenario = OrderedDict{Symbol, Any} # Like `Context`.
 const Scenarios = OrderedDict{ Symbol
-                             , Union{Vector, Dict}} # Par. => (labelled) range.
+                             , Union{Vector, AbstractDict}} # Par. => (labelled) range.
 # Getters and other utility functions.
 function Base.values(s::Scenarios; unpack=nothing)
     if unpack == :dict2keys
