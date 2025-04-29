@@ -61,7 +61,7 @@ function cubeaxes(cube::DimArray)
     return OrderedDict(axiskeys .=> axes)
 end
 
-function scenarioslice(cube::DimArray, scenario::Dict)
+function scenarioslice(cube::DimArray, scenario::AbstractDict)
     # Axis labels --- in correct order --- excluding dates and outvars.
     ks = Tuple(keys(cubeaxes(cube)))[3:end]
     # Construct coordinates for hypercube the _hard_ way.
@@ -69,13 +69,47 @@ function scenarioslice(cube::DimArray, scenario::Dict)
     # Retrieve the desired slice of hypercube.
     slice = cube[:, :, coordinates...]
     # Turn this into a DataFrame.
-    datedict = OrderedDict(:date => collect(dims(slice)[1]))
+    datedict = OrderedDict(:date => collect(dims(slice)[1].val))
     outvardict = OrderedDict( key => collect(slice[:, At(key)])
                               for key in dims(slice)[2] )
     d = merge(datedict, outvardict)
     # Deliver.
     return DataFrame(d)
 end
+
+function tostring(d)
+    kvs = [ string(k, " = ", v) for (k, v) in d ]
+    s = "["
+    for kv in kvs
+        s = string(s, " ", kv, " |")
+    end
+    s = s[1:end-1]
+    s = string(s, "]")
+    return s
+end
+
+function scenariostack(cube::DimArray, stack::Vector{Scenario})
+    return OrderedDict(tostring(s) => scenarioslice(cube, s) for s in stack)
+end
+
+    # # Axis labels --- in correct order --- excluding dates and outvars.
+    # ks = Tuple(keys(cubeaxes(cube)))[3:end]
+    # # One scenario or several?
+    # allaxes = length(s) == length(ks) # All axes provided?
+    # noranges = !any([ v isa AbstractDict || v isa Vector
+                      # for v in values(s) ]) # No dictionaries or ranges?
+    # # Then return `scenarioslice`.
+    # if allaxes && noranges
+        # return scenarioslice(cube, s)
+    # else
+        # stack = OrderedDict()
+        # for k in ks
+            # if k in [ k for k in ks if k ∉ keys(s) ]
+
+            # for v in cubeaxes(cube)[k]
+            # end
+        # end
+    # end
 
 function writecube(fname::String, cube::DimArray; numpy=true)
     # Extract the array from the DimArray.

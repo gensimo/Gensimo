@@ -227,7 +227,8 @@ function compareplot( tracesdict::AbstractDict
     fig, axes, plt = datesplots( [ tracesdict[k].date for k ∈ ks ]
                                , [ tracesdict[k][:, column] for k ∈ ks ]
                                ; xlabels
-                               , ylabels=[string(k, "\n", column) for k ∈ ks]
+                               #, ylabels=[string(k, "\n", column) for k ∈ ks]
+                               , titles=[string(k, "\n", column) for k ∈ ks]
                                , onscreen=false )
     # Link the vertical axes so they have the same scale.
     linkaxes!(axes...)
