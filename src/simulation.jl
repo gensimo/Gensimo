@@ -92,25 +92,6 @@ function scenariostack(cube::DimArray, stack::Vector{Scenario})
     return OrderedDict(tostring(s) => scenarioslice(cube, s) for s in stack)
 end
 
-    # # Axis labels --- in correct order --- excluding dates and outvars.
-    # ks = Tuple(keys(cubeaxes(cube)))[3:end]
-    # # One scenario or several?
-    # allaxes = length(s) == length(ks) # All axes provided?
-    # noranges = !any([ v isa AbstractDict || v isa Vector
-                      # for v in values(s) ]) # No dictionaries or ranges?
-    # # Then return `scenarioslice`.
-    # if allaxes && noranges
-        # return scenarioslice(cube, s)
-    # else
-        # stack = OrderedDict()
-        # for k in ks
-            # if k in [ k for k in ks if k ∉ keys(s) ]
-
-            # for v in cubeaxes(cube)[k]
-            # end
-        # end
-    # end
-
 function writecube(fname::String, cube::DimArray; numpy=true)
     # Extract the array from the DimArray.
     cube = cube |> parent
