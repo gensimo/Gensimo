@@ -1,0 +1,4 @@
+name = "Gensimo"
+uuid = "44765f09-76cd-4aa6-a8a6-8129d9dea8b3"
+authors = ["Fjalar <fjalar@fjalar.org>"]
+version = "0.1.0"
