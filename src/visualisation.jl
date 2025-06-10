@@ -193,7 +193,7 @@ function datesplots( dateses::Vector{Vector{Date}} # List of lists of dates.
     return fig, axes, plt
 end
 
-function tracesplot(traces::DataFrame; nodates=true)
+function tracesplot(traces::DataFrame; nodates=true, onscreen=true)
     # First column is always the dates.
     n = ncol(traces) - 1
     # One may want the horizontal axes labels ("Date") suppressed.
@@ -207,6 +207,10 @@ function tracesplot(traces::DataFrame; nodates=true)
                                , [ traces[:, i+1] for i ∈ 1:n ]
                                ; xlabels
                                , ylabels=names(traces)[2:end] )
+    # Show me what you got --- if requested.
+    if onscreen
+        display(fig)
+    end
     # Deliver the objects also.
     return fig, axes, plt
 end
